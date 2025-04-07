@@ -17,13 +17,8 @@ window.onload = function () {
 function findTraumapoint() {
   const keyword = document.getElementById('startInput').value;
 
-  fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&format=json&callback=result`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'appKey': tmapKey
-    },
-    body: JSON.stringify({ searchKeyword: keyword })
+  fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(keyword)}&appKey=${tmapKey}`, {
+    method: 'GET'
   })
     .then(res => res.json())
     .then(data => {
@@ -34,7 +29,10 @@ function findTraumapoint() {
       }
 
       const place = pois[0];
-      const origin = { x: parseFloat(place.frontLon), y: parseFloat(place.frontLat) };
+      const origin = {
+        x: parseFloat(place.frontLon),
+        y: parseFloat(place.frontLat)
+      };
 
       fetch('/api/traumapoint', {
         method: 'POST',
@@ -49,6 +47,10 @@ function findTraumapoint() {
           console.error('API 호출 실패:', err);
           alert("추천 실패. 다시 시도해주세요.");
         });
+    })
+    .catch(err => {
+      console.error('장소 검색 실패:', err);
+      alert("장소 검색 실패. 다시 시도해주세요.");
     });
 }
 
