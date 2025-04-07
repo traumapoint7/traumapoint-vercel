@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Traumapoint</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=b9ccd41f81d72605a0882435c138dc91&libraries=services"></script>
+</head>
+<body>
+  <header>
+    <h1>🚑 Traumapoint</h1>
+    <p>최적의 외상환자 이송 랑데부 포인트 추천</p>
+  </header>
+  <main>
+    <input type="text" id="startInput" placeholder="출발지를 입력하세요 (예: 광명역)">
+    <button onclick="findTraumapoint()">추천 받기</button>
+    <div id="results"></div>
+    <div id="map" style="width:100%; height:400px;"></div>
+  </main>
+</body>
+</html>
