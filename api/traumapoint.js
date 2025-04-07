@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   console.log("🔥 Traumapoint 추천 API 실행됨");
 
   if (req.method !== 'POST') {
@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   const { origin } = req.body;
   const gilHospital = { x: 126.7214, y: 37.4487 };
 
-  // 병원 및 소방서 목록과 좌표를 미리 정의
   const traumaPoints = [
     { name: "인하대학교의과대학부속병원", x: 126.6520, y: 37.4483 },
     { name: "김포우리병원", x: 126.7171, y: 37.6155 },
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
     'Content-Type': 'application/json'
   };
 
-  // ETA 계산 함수
   const getETA = async (from, to) => {
     try {
       const res = await fetch('https://apis-navi.kakaomobility.com/v1/directions', {
@@ -48,7 +46,7 @@ export default async function handler(req, res) {
         })
       });
       const data = await res.json();
-      return data.routes?.[0]?.summary?.duration / 60 || null; // 초 → 분
+      return data.routes?.[0]?.summary?.duration / 60 || null;
     } catch (err) {
       console.error("❗ ETA 계산 실패", err);
       return null;
@@ -70,12 +68,26 @@ export default async function handler(req, res) {
 
     const docArrival = etaDoc + 15;
 
-    if (docArrival >= eta119) continue; // 닥터카 먼저 도착 못함 ❌
+    if (docArrival >= eta119) continue;
 
     const tpToGil = await getETA(point, gilHospital);
     const totalTime = eta119 + tpToGil;
 
     const diff = eta119 - docArrival;
     let category = "Safe";
-    if (diff <= 5) category =
-::contentReference[oaicite:12]{index=12}
+    if (diff <= 5) category = "Fast";
+    else if (diff <= 10) category = "Accurate";
+
+    results.push({
+      name: point.name,
+      eta119: eta119.toFixed(1),
+      etaDoc: docArrival.toFixed(1),
+      tpToGil: tpToGil.toFixed(1),
+      total: totalTime.toFixed(1),
+      category
+    });
+  }
+
+  results.sort((a, b) => a.total - b.total);
+  res.status(200).json({ recommendations: results.slice(0, 12) });
+};
