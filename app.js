@@ -1,14 +1,12 @@
 let map, geocoder, places;
 
-kakao.maps.load(function () {
-  map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(37.5665, 126.978),
-    level: 7
-  });
-
-  geocoder = new kakao.maps.services.Geocoder();
-  places = new kakao.maps.services.Places();
+map = new kakao.maps.Map(document.getElementById('map'), {
+  center: new kakao.maps.LatLng(37.5665, 126.978),
+  level: 7
 });
+
+geocoder = new kakao.maps.services.Geocoder();
+places = new kakao.maps.services.Places();
 
 const destinations = [
   { name: "인천성모병원", x: "126.678", y: "37.453" },
