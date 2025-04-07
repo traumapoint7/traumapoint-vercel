@@ -36,6 +36,7 @@ export default async function handler(req, res) {
       }
 
       const loc = data.documents[0];
+      console.log(`📍 ${placeName} 좌표: (${loc.x}, ${loc.y})`);
       return { x: parseFloat(loc.x), y: parseFloat(loc.y) };
     } catch (err) {
       console.error(`❗ Kakao 검색 API 실패 (${placeName})`, err);
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
         })
       });
       const data = await res.json();
-      return data.routes?.[0]?.summary?.duration / 60 || null; // 초 → 분
+      return data.routes?.[0]?.summary?.duration / 60 || null;
     } catch (err) {
       console.error("❗ ETA 계산 실패", err);
       return null;
@@ -67,7 +68,10 @@ export default async function handler(req, res) {
   for (const name of traumaPoints) {
     console.log(`➡️ 병원 진입: ${name}`);
     const coords = await getCoordinates(name);
-    if (!coords) continue;
+    if (!coords) {
+      console.warn(`⛔ 좌표 없음 - 병원 제외: ${name}`);
+      continue;
+    }
 
     const eta119 = await getETA(origin, coords);
     const etaDoc = await getETA(gilHospital, coords);
@@ -80,14 +84,10 @@ export default async function handler(req, res) {
     const docArrival = etaDoc + 15;
     const tpToGil = await getETA(coords, gilHospital);
     const totalTime = eta119 + tpToGil;
-
     const diff = eta119 - docArrival;
 
-    // 📊 디버깅 로그 추가
-    console.log(`📊 ${name} - 119ETA: ${eta119.toFixed(1)}분, 닥터카ETA+15: ${docArrival.toFixed(1)}분, 차이: ${diff.toFixed(1)}분`);
-
-    // 필터링 제거 (전부 다 보고 싶기 때문에)
-    // if (docArrival >= eta119) continue;
+    // 🔍 로그 추가
+    console.log(`📊 ${name} - 119: ${eta119.toFixed(1)}분, 닥터카+15: ${docArrival.toFixed(1)}분, 차이: ${diff.toFixed(1)}분`);
 
     let category = "Safe";
     if (diff <= 5) category = "Fast";
