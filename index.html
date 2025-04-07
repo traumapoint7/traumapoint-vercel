@@ -6,7 +6,22 @@
   <title>Traumapoint</title>
   <link rel="stylesheet" href="/style.css" />
   <!-- ✅ Kakao 지도 SDK (정적 로딩, autoload=true 기본값 사용) -->
-  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=b9ccd41f81d72605a0882435c138dc91&libraries=services"></script>
+ <script>
+  (function(d, s, id, kakaoKey) {
+    var js, kjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s);
+    js.id = id;
+    js.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + kakaoKey + "&autoload=false&libraries=services";
+    kjs.parentNode.insertBefore(js, kjs);
+    js.onload = function() {
+      kakao.maps.load(function() {
+        // 지도가 로드된 후 실행할 코드 넣기
+        window.initMap(); // ✅ 이 함수는 app.js에서 선언
+      });
+    };
+  })(document, 'script', 'kakao-sdk', 'b9ccd41f81d72605a0882435c138dc91');
+</script>
 </head>
 <body>
   <header>
