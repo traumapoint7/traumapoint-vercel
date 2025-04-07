@@ -5,8 +5,12 @@
   <title>Traumapoint</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/style.css">
-  <script defer src="/app.js"></script>
+
+  <!-- ✅ 1. 카카오맵 SDK 먼저 로드 -->
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=b9ccd41f81d72605a0882435c138dc91&libraries=services"></script>
+
+  <!-- ✅ 2. 내 JS 로직은 그 다음에 로드 (defer는 계속 유지) -->
+  <script defer src="/app.js"></script>
 </head>
 <body>
   <header>
