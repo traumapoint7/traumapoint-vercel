@@ -4,11 +4,14 @@ const fs = require('fs');
 const appKey = 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m'; // Tmap 앱키 그대로
 
 const names = [
-  "김포소방서", "중앙119안전센터 (김포)", "양촌119안전센터",
+  "김포소방서",
+  // "중앙119안전센터 (김포)",
+  "양촌119안전센터",
   "마산119안전센터", "대곶119안전센터", "통진119안전센터",
   "고촌119안전센터", "하성119안전센터", "괴안119안전센터",
   "범박119안전센터", "오정119안전센터", "원종119안전센터",
-  "여월119안전센터", "부천소방서", "중앙119안전센터 (부천)",
+  "여월119안전센터", "부천소방서",
+  // "중앙119안전센터 (부천)",
   "중동119안전센터", "상동119안전센터", "서부119안전센터",
   "신상119안전센터", "시흥소방서", "시흥119안전센터",
   "은행119안전센터", "정왕119안전센터", "연성119안전센터",
@@ -54,7 +57,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
       });
 
       console.log(`✅ ${name} → (${info.newLat}, ${info.newLon})`);
-      await delay(1000); // 너무 빠르면 Tmap이 막을 수 있음
+      await delay(1000); // 1초 대기
     } catch (err) {
       console.error(`❌ ${name} 실패:`, err.response?.data?.resultMsg || err.message);
     }
