@@ -40,18 +40,27 @@ function findTraumapoint() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ origin, destinations })
     })
-      .then(res => res.json())
-      .then(data => showResults(data.routes))
-      .catch(err => {
-        console.error(err);
-        alert("추천 실패. 다시 시도해주세요.");
-      });
+    .then(res => res.json())
+    .then(data => {
+      console.log('API 응답:', data); // ✅ 여기 추가!
+      showResults(data.routes);
+    })
+    .catch(err => {
+      console.error('API 호출 실패:', err);
+      alert("추천 실패. 다시 시도해주세요.");
+    });
   });
 }
 
 function showResults(routes) {
   const container = document.getElementById('results');
   container.innerHTML = '';
+
+  if (!routes || !Array.isArray(routes)) {
+    container.innerHTML = '<p>❌ 추천할 수 있는 Traumapoint가 없습니다.</p>';
+    return;
+  }
+
   routes.sort((a, b) => a.summary.duration - b.summary.duration);
 
   routes.forEach(r => {
