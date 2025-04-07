@@ -57,7 +57,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
       });
 
       console.log(`✅ ${name} → (${info.newLat}, ${info.newLon})`);
-      await delay(1000); // 1초 대기
+      await delay(1500); // 1초 대기
     } catch (err) {
       console.error(`❌ ${name} 실패:`, err.response?.data?.resultMsg || err.message);
     }
