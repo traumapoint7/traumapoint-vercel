@@ -78,14 +78,17 @@ export default async function handler(req, res) {
     }
 
     const docArrival = etaDoc + 15;
-
-    // 🔧 필터 주석처리: 무조건 결과 확인을 위해
-    // if (docArrival >= eta119) continue;
-
     const tpToGil = await getETA(coords, gilHospital);
     const totalTime = eta119 + tpToGil;
 
     const diff = eta119 - docArrival;
+
+    // 📊 디버깅 로그 추가
+    console.log(`📊 ${name} - 119ETA: ${eta119.toFixed(1)}분, 닥터카ETA+15: ${docArrival.toFixed(1)}분, 차이: ${diff.toFixed(1)}분`);
+
+    // 필터링 제거 (전부 다 보고 싶기 때문에)
+    // if (docArrival >= eta119) continue;
+
     let category = "Safe";
     if (diff <= 5) category = "Fast";
     else if (diff <= 10) category = "Accurate";
