@@ -22,7 +22,6 @@ export default async function handler(req, res) {
     'Content-Type': 'application/json'
   };
 
-  // 좌표 보정 함수
   const getCoordinates = async (placeName) => {
     try {
       const resp = await fetch(
@@ -44,7 +43,6 @@ export default async function handler(req, res) {
     }
   };
 
-  // ETA 계산 함수
   const getETA = async (from, to) => {
     try {
       const res = await fetch('https://apis-navi.kakaomobility.com/v1/directions', {
@@ -81,7 +79,8 @@ export default async function handler(req, res) {
 
     const docArrival = etaDoc + 15;
 
-    if (docArrival >= eta119) continue; // 닥터카 먼저 도착 못함 ❌
+    // 🔧 필터 주석처리: 무조건 결과 확인을 위해
+    // if (docArrival >= eta119) continue;
 
     const tpToGil = await getETA(coords, gilHospital);
     const totalTime = eta119 + tpToGil;
