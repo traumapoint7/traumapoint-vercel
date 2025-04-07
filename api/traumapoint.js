@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
 
 const getETA = async (from, to) => {
   try {
-    const resp = await fetch(`https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1&format=json&callback=result`, {
+    const resp = await fetch(`https://apis.openapi.sk.com/tmap/routes?version=1&format=json&callback=result`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -34,12 +34,14 @@ const getETA = async (from, to) => {
         endX: to.x.toString(),
         endY: to.y.toString(),
         reqCoordType: "WGS84GEO",
-        resCoordType: "WGS84GEO"
+        resCoordType: "WGS84GEO",
+        startName: "출발지",
+        endName: "도착지"
       })
     });
     const data = await resp.json();
-    console.log("📦 ETA 응답 데이터:", data); // ✅ 여기 추가!
-    return data.features?.[0]?.properties?.totalTime / 60 || null;
+    console.log("📦 ETA 응답 데이터:", data); // 결과 확인
+    return data.features?.[0]?.properties?.totalTime / 60 || null; // 초 → 분
   } catch (err) {
     console.error("❗ ETA 계산 실패", err);
     return null;
