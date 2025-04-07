@@ -1,12 +1,12 @@
 export default async function handler(req, res) {
-  console.log("🔥 Traumapoint 추천 API 실행됨"); // 로그 추가 ✅
+  console.log("🔥 Traumapoint 추천 API 실행됨"); // 전체 실행 확인 로그
 
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
   const { origin } = req.body;
-  const gilHospital = { x: 126.7214, y: 37.4487 }; // 길병원 고정 좌표
+  const gilHospital = { x: 126.7214, y: 37.4487 };
 
   const traumaPoints = [
     {
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
 
       const data = await response.json();
       if (data.routes?.[0]?.summary?.duration) {
-        return data.routes[0].summary.duration / 60; // 초 → 분
+        return data.routes[0].summary.duration / 60;
       }
     } catch (error) {
       console.error('ETA 계산 오류:', error);
@@ -128,12 +128,15 @@ export default async function handler(req, res) {
   const results = [];
 
   for (const point of traumaPoints) {
-    console.log(`➡️ 병원 진입: ${point.name}`); // 병원 이름도 출력해서 디버그 쉽게
+    console.log(`➡️ 병원 진입: ${point.name}`);
 
     const eta119 = await getETA(origin, point);
     const etaDoc = await getETA(gilHospital, point);
 
-    if (eta119 == null || etaDoc == null) continue;
+    if (eta119 == null || etaDoc == null) {
+      console.log(`❗ ETA 계산 실패 - ${point.name} eta119: ${eta119}, etaDoc: ${etaDoc}`);
+      continue;
+    }
 
     const docArrival = etaDoc + 15;
 
