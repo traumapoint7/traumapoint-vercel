@@ -132,6 +132,9 @@ export default async function handler(req, res) {
     if (eta119 == null || etaDoc == null) continue;
 
     const docArrival = etaDoc + 15;
+
+    console.log(`[점검] ${point.name} ETA119: ${eta119.toFixed(1)} vs 닥터카(15+${etaDoc.toFixed(1)}) = ${docArrival.toFixed(1)}`);
+
     if (docArrival >= eta119) continue;
 
     const tpToGil = await getETA(point, gilHospital);
