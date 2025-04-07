@@ -9,44 +9,34 @@ module.exports = async function handler(req, res) {
   const gilHospital = { x: 126.7214, y: 37.4487 };
 
   const traumaPoints = [
-    { name: "인하대학교의과대학부속병원", x: 126.6520, y: 37.4483 },
     { name: "김포우리병원", x: 126.7171, y: 37.6155 },
-    { name: "광명성애병원", x: 126.8643, y: 37.4790 },
     { name: "부천성모병원", x: 126.7635, y: 37.4860 },
-    { name: "순천향대부속부천병원", x: 126.7820, y: 37.5034 },
-    { name: "부천세종병원", x: 126.7870, y: 37.5039 },
+    { name: "광명성애병원", x: 126.8643, y: 37.4790 },
     { name: "중앙대광명병원", x: 126.8649, y: 37.4773 },
-    { name: "플러스의료재단 단원병원", x: 126.8121, y: 37.3217 },
-    { name: "센트럴병원", x: 126.7381, y: 37.3415 },
-    { name: "시화병원", x: 126.7425, y: 37.3445 },
-    { name: "한림병원", x: 126.7022, y: 37.5065 },
-    { name: "인천적십자병원", x: 126.6874, y: 37.4765 },
-    { name: "강화소방서", x: 126.4871, y: 37.7474 },
-    { name: "연수소방서", x: 126.6785, y: 37.4180 },
-    { name: "김포소방서", x: 126.7170, y: 37.6155 },
-    { name: "광명소방서", x: 126.8643, y: 37.4790 },
     { name: "부천소방서", x: 126.7870, y: 37.5039 },
-    { name: "시흥소방서", x: 126.7870, y: 37.3800 }
+    { name: "센트럴병원", x: 126.7381, y: 37.3415 },
+    { name: "시화병원", x: 126.7425, y: 37.3445 }
   ];
-
-  const headers = {
-    Authorization: `KakaoAK ${process.env.KAKAO_REST_KEY}`,
-    'Content-Type': 'application/json'
-  };
 
   const getETA = async (from, to) => {
     try {
-      const res = await fetch('https://apis-navi.kakaomobility.com/v1/directions', {
+      const resp = await fetch(`https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1&format=json&callback=result`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'appKey': 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m'
+        },
         body: JSON.stringify({
-          origin: { x: from.x, y: from.y },
-          destination: { x: to.x, y: to.y },
-          priority: 'RECOMMEND'
+          startX: from.x.toString(),
+          startY: from.y.toString(),
+          endX: to.x.toString(),
+          endY: to.y.toString(),
+          reqCoordType: "WGS84GEO",
+          resCoordType: "WGS84GEO"
         })
       });
-      const data = await res.json();
-      return data.routes?.[0]?.summary?.duration / 60 || null;
+      const data = await resp.json();
+      return data.features?.[0]?.properties?.totalTime / 60 || null;
     } catch (err) {
       console.error("❗ ETA 계산 실패", err);
       return null;
@@ -55,23 +45,17 @@ module.exports = async function handler(req, res) {
 
   const results = [];
 
-  for (const point of traumaPoints) {
-    console.log(`➡️ 병원 진입: ${point.name}`);
+  for (const tp of traumaPoints) {
+    const eta119 = await getETA(origin, tp);
+    const etaDoc = await getETA(gilHospital, tp);
 
-    const eta119 = await getETA(origin, point);
-    const etaDoc = await getETA(gilHospital, point);
-
-    if (eta119 == null || etaDoc == null) {
-      console.log(`❗ ETA 계산 실패 - ${point.name} eta119: ${eta119}, etaDoc: ${etaDoc}`);
-      continue;
-    }
+    if (!eta119 || !etaDoc) continue;
 
     const docArrival = etaDoc + 15;
-
     if (docArrival >= eta119) continue;
 
-    const tpToGil = await getETA(point, gilHospital);
-    const totalTime = eta119 + tpToGil;
+    const tpToGil = await getETA(tp, gilHospital);
+    const total = eta119 + tpToGil;
 
     const diff = eta119 - docArrival;
     let category = "Safe";
@@ -79,15 +63,15 @@ module.exports = async function handler(req, res) {
     else if (diff <= 10) category = "Accurate";
 
     results.push({
-      name: point.name,
+      name: tp.name,
       eta119: eta119.toFixed(1),
       etaDoc: docArrival.toFixed(1),
       tpToGil: tpToGil.toFixed(1),
-      total: totalTime.toFixed(1),
+      total: total.toFixed(1),
       category
     });
   }
 
   results.sort((a, b) => a.total - b.total);
-  res.status(200).json({ recommendations: results.slice(0, 12) });
+  res.status(200).json({ recommendations: results.slice(0, 10) });
 };
