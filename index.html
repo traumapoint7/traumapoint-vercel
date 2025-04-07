@@ -5,23 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Traumapoint</title>
   <link rel="stylesheet" href="/style.css" />
-  <!-- ✅ Kakao 지도 SDK (정적 로딩, autoload=true 기본값 사용) -->
- <script>
-  (function(d, s, id, kakaoKey) {
-    var js, kjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) return;
-    js = d.createElement(s);
-    js.id = id;
-    js.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + kakaoKey + "&autoload=false&libraries=services";
-    kjs.parentNode.insertBefore(js, kjs);
-    js.onload = function() {
-      kakao.maps.load(function() {
-        // 지도가 로드된 후 실행할 코드 넣기
-        window.initMap(); // ✅ 이 함수는 app.js에서 선언
-      });
-    };
-  })(document, 'script', 'kakao-sdk', 'b9ccd41f81d72605a0882435c138dc91');
-</script>
 </head>
 <body>
   <header>
@@ -36,7 +19,38 @@
     <div id="map" style="width:100%; height:400px;"></div>
   </main>
 
-  <!-- ✅ 앱 로직은 defer 없이 아래에 직접 실행 -->
+  <!-- ✅ Kakao 지도 SDK 비동기 로드 및 지도 초기화 -->
+  <script>
+    window.initMap = function () {
+      map = new kakao.maps.Map(document.getElementById('map'), {
+        center: new kakao.maps.LatLng(37.5665, 126.978),
+        level: 7
+      });
+
+      geocoder = new kakao.maps.services.Geocoder();
+      places = new kakao.maps.services.Places();
+
+      document.getElementById('searchBtn').addEventListener('click', () => {
+        findTraumapoint();
+      });
+    };
+
+    (function(d, s, id, kakaoKey) {
+      var js, kjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s);
+      js.id = id;
+      js.src = "https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=" + kakaoKey + "&libraries=services";
+      kjs.parentNode.insertBefore(js, kjs);
+      js.onload = function() {
+        kakao.maps.load(function() {
+          window.initMap(); // SDK 로드 후 지도 초기화 호출
+        });
+      };
+    })(document, 'script', 'kakao-sdk', 'b9ccd41f81d72605a0882435c138dc91');
+  </script>
+
+  <!-- 앱 로직 -->
   <script src="/app.js"></script>
 </body>
 </html>
