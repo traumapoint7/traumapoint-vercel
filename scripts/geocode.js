@@ -54,7 +54,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
       });
 
       console.log(`✅ ${name} → (${info.newLat}, ${info.newLon})`);
-      await delay(300); // 너무 빠르면 Tmap이 막을 수 있음
+      await delay(1000); // 너무 빠르면 Tmap이 막을 수 있음
     } catch (err) {
       console.error(`❌ ${name} 실패:`, err.response?.data?.resultMsg || err.message);
     }
