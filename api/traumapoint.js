@@ -6,6 +6,8 @@ module.exports = async function handler(req, res) {
   }
 
   const { origin } = req.body;
+  console.log("🚀 origin 좌표:", origin); // ✅ 요 줄 추가한 거예요
+
   const gilHospital = { x: 126.7214, y: 37.4487 };
 
   const traumaPoints = [
