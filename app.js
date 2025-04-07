@@ -1,70 +1,67 @@
-let map, geocoder, places;
+let map;
+let tmapKey = 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m';
 
 window.onload = function () {
-  map = new kakao.maps.Map(document.getElementById('map'), {
-    center: new kakao.maps.LatLng(37.5665, 126.978),
-    level: 7
+  map = new Tmapv2.Map("map", {
+    center: new Tmapv2.LatLng(37.5665, 126.978),
+    width: "100%",
+    height: "400px",
+    zoom: 12
   });
-
-  geocoder = new kakao.maps.services.Geocoder();
-  places = new kakao.maps.services.Places();
 
   document.getElementById('searchBtn').addEventListener('click', () => {
     findTraumapoint();
   });
 };
 
-const destinations = [
-  { name: "인천성모병원", x: "126.678", y: "37.453" },
-  { name: "송도소방서", x: "126.644", y: "37.390" },
-  { name: "부천순천향병원", x: "126.775", y: "37.505" },
-  { name: "부천소방서", x: "126.783", y: "37.496" },
-  { name: "김포우리병원", x: "126.716", y: "37.620" },
-  { name: "김포소방서", x: "126.718", y: "37.616" }
-];
-
 function findTraumapoint() {
   const keyword = document.getElementById('startInput').value;
 
-  places.keywordSearch(keyword, (data, status) => {
-    if (status !== kakao.maps.services.Status.OK || !data.length) {
-      alert("출발지를 찾을 수 없습니다.");
-      return;
-    }
-
-    const place = data[0];
-    const origin = { x: place.x, y: place.y };
-
-    fetch('/api/traumapoint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin, destinations })
-    })
+  fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&format=json&callback=result`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'appKey': tmapKey
+    },
+    body: JSON.stringify({ searchKeyword: keyword })
+  })
     .then(res => res.json())
     .then(data => {
-      console.log('API 응답:', data); // ✅ 여기 추가!
-      showResults(data.routes);
-    })
-    .catch(err => {
-      console.error('API 호출 실패:', err);
-      alert("추천 실패. 다시 시도해주세요.");
+      const pois = data.searchPoiInfo?.pois?.poi;
+      if (!pois || pois.length === 0) {
+        alert("출발지를 찾을 수 없습니다.");
+        return;
+      }
+
+      const place = pois[0];
+      const origin = { x: parseFloat(place.frontLon), y: parseFloat(place.frontLat) };
+
+      fetch('/api/traumapoint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin })
+      })
+        .then(res => res.json())
+        .then(data => {
+          showResults(data.recommendations);
+        })
+        .catch(err => {
+          console.error('API 호출 실패:', err);
+          alert("추천 실패. 다시 시도해주세요.");
+        });
     });
-  });
 }
 
 function showResults(routes) {
   const container = document.getElementById('results');
   container.innerHTML = '';
 
-  if (!routes || !Array.isArray(routes)) {
+  if (!routes || !Array.isArray(routes) || routes.length === 0) {
     container.innerHTML = '<p>❌ 추천할 수 있는 Traumapoint가 없습니다.</p>';
     return;
   }
 
-  routes.sort((a, b) => a.summary.duration - b.summary.duration);
-
   routes.forEach(r => {
-    const min = Math.floor(r.summary.duration / 60);
-    container.innerHTML += `<p>🚨 ${r.key} : 약 ${min}분 소요</p>`;
+    container.innerHTML += `<p>🚨 ${r.name} | 119ETA: ${r.eta119}분, 닥터카ETA: ${r.etaDoc}분, 분류: ${r.category}</p>`;
   });
 }
