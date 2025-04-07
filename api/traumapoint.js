@@ -20,30 +20,31 @@ module.exports = async function handler(req, res) {
     { name: "시화병원", x: 126.7425, y: 37.3445 }
   ];
 
-  const getETA = async (from, to) => {
-    try {
-      const resp = await fetch(`https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1&format=json&callback=result`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'appKey': 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m'
-        },
-        body: JSON.stringify({
-          startX: from.x.toString(),
-          startY: from.y.toString(),
-          endX: to.x.toString(),
-          endY: to.y.toString(),
-          reqCoordType: "WGS84GEO",
-          resCoordType: "WGS84GEO"
-        })
-      });
-      const data = await resp.json();
-      return data.features?.[0]?.properties?.totalTime / 60 || null;
-    } catch (err) {
-      console.error("❗ ETA 계산 실패", err);
-      return null;
-    }
-  };
+const getETA = async (from, to) => {
+  try {
+    const resp = await fetch(`https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1&format=json&callback=result`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'appKey': 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m'
+      },
+      body: JSON.stringify({
+        startX: from.x.toString(),
+        startY: from.y.toString(),
+        endX: to.x.toString(),
+        endY: to.y.toString(),
+        reqCoordType: "WGS84GEO",
+        resCoordType: "WGS84GEO"
+      })
+    });
+    const data = await resp.json();
+    console.log("📦 ETA 응답 데이터:", data); // ✅ 여기 추가!
+    return data.features?.[0]?.properties?.totalTime / 60 || null;
+  } catch (err) {
+    console.error("❗ ETA 계산 실패", err);
+    return null;
+  }
+};
 
   const results = [];
 
