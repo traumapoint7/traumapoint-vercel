@@ -1,4 +1,6 @@
 export default async function handler(req, res) {
+  console.log("🔥 Traumapoint 추천 API 실행됨"); // 로그 추가 ✅
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
@@ -126,6 +128,8 @@ export default async function handler(req, res) {
   const results = [];
 
   for (const point of traumaPoints) {
+    console.log(`➡️ 병원 진입: ${point.name}`); // 병원 이름도 출력해서 디버그 쉽게
+
     const eta119 = await getETA(origin, point);
     const etaDoc = await getETA(gilHospital, point);
 
