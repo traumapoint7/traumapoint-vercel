@@ -9,6 +9,16 @@ window.onload = function () {
     zoom: 12
   });
 
+  // ✅ traumaPoints.json 테스트 로딩
+  fetch('/data/traumaPoints.json')
+    .then(res => res.json())
+    .then(data => {
+      console.log("✅ traumaPoints loaded:", data);
+    })
+    .catch(err => {
+      console.error("❌ traumaPoints 불러오기 실패:", err);
+    });
+
   document.getElementById('searchBtn').addEventListener('click', () => {
     findTraumapoint();
   });
