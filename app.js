@@ -39,9 +39,9 @@ function findTraumapoint() {
       }
 
       const place = pois[0];
-      const origin = {
-        x: parseFloat(place.frontLon),
-        y: parseFloat(place.frontLat)
+   const origin = {
+  x: parseFloat(place.frontLon),  // 위도
+  y: parseFloat(place.frontLat)   // 경도
       };
 
       fetch('/api/traumapoint', {
@@ -74,6 +74,6 @@ function showResults(routes) {
   }
 
   routes.forEach(r => {
-    container.innerHTML += `<p>🚨 ${r.name} | 119ETA: ${r.eta119}분, 닥터카ETA: ${r.etaDoc}분, 분류: ${r.category}</p>`;
+    container.innerHTML += `<p>🚨 ${r.name} | 119ETA: ${r.eta119}분, 닥터카ETA: ${r.etaDoc}분, 총 이송시간: ${r.total}분, 분류: ${r.category}</p>`;
   });
 }
