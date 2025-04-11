@@ -15,11 +15,20 @@
 
   <main>
     <input type="text" id="startInput" placeholder="출발지를 입력하세요 (예: 광명역)" />
+    <div id="suggestions"></div>
     <button id="searchBtn">추천 받기</button>
+    <button id="currentLocationBtn">📍 현재 위치에서 추천받기</button>
+    <button id="copyAppLink">Traumapoint 앱 공유하기</button>
     <div id="results"></div>
     <div id="map" style="width:100%; height:400px;"></div>
   </main>
 
   <script src="/app.js"></script>
+  <script>
+    document.getElementById('copyAppLink').addEventListener('click', () => {
+      navigator.clipboard.writeText(window.location.origin);
+      alert("✅ Traumapoint 기본 링크가 복사되었습니다!");
+    });
+  </script>
 </body>
 </html>
