@@ -1,6 +1,5 @@
 let map;
 let tmapKey = 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m';
-let currentMarker = null;
 
 window.onload = function () {
   map = new Tmapv2.Map("map", {
@@ -32,13 +31,8 @@ window.onload = function () {
           };
           console.log("📍 현재 위치 좌표:", origin);
 
-          // 기존 마커 제거
-          if (currentMarker) {
-            currentMarker.setMap(null);
-          }
-
-          // 현재 위치 마커 표시
-          currentMarker = new Tmapv2.Marker({
+          // ✅ 지도에 현재 위치 마커 표시
+          new Tmapv2.Marker({
             position: new Tmapv2.LatLng(origin.y, origin.x),
             map: map,
             icon: "http://tmapapi.sktelecom.com/upload/tmap/marker/pin_r_m_a.png",
@@ -75,21 +69,6 @@ window.onload = function () {
   const y = parseFloat(params.get('y'));
   if (x && y) {
     const origin = { x, y };
-
-    // 기존 마커 제거
-    if (currentMarker) {
-      currentMarker.setMap(null);
-    }
-
-    // URL로 전달된 위치 마커 표시
-    currentMarker = new Tmapv2.Marker({
-      position: new Tmapv2.LatLng(origin.y, origin.x),
-      map: map,
-      icon: "http://tmapapi.sktelecom.com/upload/tmap/marker/pin_r_m_a.png",
-      title: "공유된 위치"
-    });
-    map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
-
     fetch('/api/traumapoint', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -146,13 +125,8 @@ function findTraumapoint() {
         y: parseFloat(place.frontLat)
       };
 
-      // 기존 마커 제거
-      if (currentMarker) {
-        currentMarker.setMap(null);
-      }
-
-      // 검색한 위치 마커 표시
-      currentMarker = new Tmapv2.Marker({
+      // 마커도 찍자!
+      new Tmapv2.Marker({
         position: new Tmapv2.LatLng(origin.y, origin.x),
         map: map,
         icon: "http://tmapapi.sktelecom.com/upload/tmap/marker/pin_r_m_a.png",
@@ -180,6 +154,66 @@ function findTraumapoint() {
 
 function showResults(routes, origin) {
   const container = document.getElementById('results');
-  container.innerHTML
-::contentReference[oaicite:3]{index=3}
- 
+  container.innerHTML = '';
+
+  if (!routes || !Array.isArray(routes) || routes.length === 0) {
+    container.innerHTML = '<p>❌ 추천할 수 있는 Traumapoint가 없습니다.</p>';
+    return;
+  }
+
+  const grouped = {
+    Fast: [],
+    Accurate: [],
+    Safe: [],
+  };
+
+  routes.forEach(r => {
+    grouped[r.category]?.push(r);
+  });
+
+  const categoryLabel = {
+    Fast: '닥터카 인계점 대기시간: ~5분',
+    Accurate: '닥터카 인계점 대기시간: 5~10분',
+    Safe: '닥터카 인계점 대기시간: 10분 이상',
+  };
+
+  for (const cat of ['Fast', 'Accurate', 'Safe']) {
+    container.innerHTML += `<h3>✅ 추천 Traumapoint (${cat})</h3>`;
+    container.innerHTML += `<p>${categoryLabel[cat]}</p>`;
+
+    if (grouped[cat].length === 0) {
+      container.innerHTML += `<p>추천 Traumapoint 없음.</p>`;
+    } else {
+      const hospitals = grouped[cat].filter(tp => tp.type === '병원').slice(0, 2);
+      const fireStations = grouped[cat].filter(tp => tp.type === '소방').slice(0, 2);
+      const selected = hospitals.concat(fireStations);
+
+      selected.forEach(tp => {
+        const gain = (tp.eta119 - tp.etaDoc).toFixed(1);
+
+        container.innerHTML += `
+          <div class="hospital" style="padding:10px; margin-bottom:10px;">
+            <h4>🏥 ${tp.name} ${tp.level ? `(${tp.level})` : ''}</h4>
+            <ul>
+              <li><strong>🕒 119 ETA: ${tp.eta119}분</strong></li>
+              <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 먼저 도착</li>
+              <li class="highlight"><strong>⏱ 🚨 총 이송시간: ${tp.total}분</strong> (<span style="color:red; font-weight:bold;">🩺 의사 접촉: ${tp.eta119}분</span>)</li>
+              <li><span style="color:red; font-weight: bold;">🚨 길병원 다이렉트 이송 시: ${tp.directToGilETA}분</span></li>
+              <li>📍 주소: ${tp.address || '정보 없음'}</li>
+              <li>📞 전화번호: ${tp.tel || '정보 없음'}</li>
+            </ul>
+          </div>
+        `;
+      });
+    }
+  }
+
+  const shareUrl = `${window.location.origin}?x=${origin.x}&y=${origin.y}`;
+  container.innerHTML += `
+    <p>
+      <a href="#" class="tmap-link" onclick="navigator.clipboard.writeText('${shareUrl}'); alert('📎 링크가 복사되었습니다: ${shareUrl}'); return false;">
+        🔗 결과 공유하기
+      </a>
+    </p>
+  `;
+}
