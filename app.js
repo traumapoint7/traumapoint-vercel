@@ -31,7 +31,6 @@ window.onload = function () {
           };
           console.log("📍 현재 위치 좌표:", origin);
 
-          // ✅ 지도에 현재 위치 마커 표시
           new Tmapv2.Marker({
             position: new Tmapv2.LatLng(origin.y, origin.x),
             map: map,
@@ -63,7 +62,6 @@ window.onload = function () {
     }
   });
 
-  // URL에 좌표가 있으면 자동 실행
   const params = new URLSearchParams(window.location.search);
   const x = parseFloat(params.get('x'));
   const y = parseFloat(params.get('y'));
@@ -125,7 +123,6 @@ function findTraumapoint() {
         y: parseFloat(place.frontLat)
       };
 
-      // 마커도 찍자!
       new Tmapv2.Marker({
         position: new Tmapv2.LatLng(origin.y, origin.x),
         map: map,
@@ -161,52 +158,41 @@ function showResults(routes, origin) {
     return;
   }
 
-  const grouped = {
-    Fast: [],
-    Accurate: [],
-    Safe: [],
-  };
+  routes.sort((a, b) => parseFloat(a.total) - parseFloat(b.total));
 
-  routes.forEach(r => {
-    grouped[r.category]?.push(r);
-  });
+  routes.forEach(tp => {
+    const eta119 = parseFloat(tp.eta119);
+    const docArrival = parseFloat(tp.etaDoc); // 이미 +15 된 값
+    const gain = (eta119 - docArrival).toFixed(1);
 
-  const categoryLabel = {
-    Fast: '닥터카 인계점 대기시간: ~5분',
-    Accurate: '닥터카 인계점 대기시간: 5~10분',
-    Safe: '닥터카 인계점 대기시간: 10분 이상',
-  };
+    let status = '';
+    let color = '';
 
-  for (const cat of ['Fast', 'Accurate', 'Safe']) {
-    container.innerHTML += `<h3>✅ 추천 Traumapoint (${cat})</h3>`;
-    container.innerHTML += `<p>${categoryLabel[cat]}</p>`;
-
-    if (grouped[cat].length === 0) {
-      container.innerHTML += `<p>추천 Traumapoint 없음.</p>`;
+    if (gain <= 5) {
+      status = 'Danger';
+      color = 'red';
+    } else if (gain <= 10) {
+      status = 'On-time';
+      color = 'blue';
     } else {
-      const hospitals = grouped[cat].filter(tp => tp.type === '병원').slice(0, 2);
-      const fireStations = grouped[cat].filter(tp => tp.type === '소방').slice(0, 2);
-      const selected = hospitals.concat(fireStations);
-
-      selected.forEach(tp => {
-        const gain = (tp.eta119 - tp.etaDoc).toFixed(1);
-
-        container.innerHTML += `
-          <div class="hospital" style="padding:10px; margin-bottom:10px;">
-            <h4>🏥 ${tp.name} ${tp.level ? `(${tp.level})` : ''}</h4>
-            <ul>
-              <li><strong>🕒 119 ETA: ${tp.eta119}분</strong></li>
-              <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 먼저 도착</li>
-              <li class="highlight"><strong>⏱ 🚨 총 이송시간: ${tp.total}분</strong> (<span style="color:red; font-weight:bold;">🩺 의사 접촉: ${tp.eta119}분</span>)</li>
-              <li><span style="color:red; font-weight: bold;">🚨 길병원 다이렉트 이송 시: ${tp.directToGilETA}분</span></li>
-              <li>📍 주소: ${tp.address || '정보 없음'}</li>
-              <li>📞 전화번호: ${tp.tel || '정보 없음'}</li>
-            </ul>
-          </div>
-        `;
-      });
+      status = 'Safe';
+      color = 'green';
     }
-  }
+
+    container.innerHTML += `
+      <div class="hospital" style="padding:10px; margin-bottom:10px;">
+        <h4>🏥 ${tp.name} ${tp.level ? `(${tp.level})` : ''}</h4>
+        <ul>
+          <li><strong>🕒 119 ETA: ${tp.eta119}분</strong></li>
+          <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 먼저 도착 <span style="color:${color}; font-weight:bold;">${status}</span></li>
+          <li class="highlight"><strong>⏱ 🚨 총 이송시간: ${tp.total}분</strong> (<span style="color:red; font-weight:bold;">🩺 의사 접촉: ${tp.eta119}분</span>)</li>
+          <li><span style="color:red; font-weight: bold;">🚨 길병원 다이렉트 이송 시: ${tp.directToGilETA}분</span></li>
+          <li>📍 주소: ${tp.address || '정보 없음'}</li>
+          <li>📞 전화번호: ${tp.tel || '정보 없음'}</li>
+        </ul>
+      </div>
+    `;
+  });
 
   const shareUrl = `${window.location.origin}?x=${origin.x}&y=${origin.y}`;
   container.innerHTML += `
