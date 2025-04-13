@@ -9,18 +9,16 @@
 </head>
 <body>
   <header>
-  <div style="display: flex; align-items: center; justify-content: space-between;">
-    <div>
-      <h1>🚑 Traumapoint</h1>
-      <p>Tmap 기반 외상 이송 포인트 추천 시스템</p>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <h1>🚑 Traumapoint</h1>
+        <p>Tmap 기반 외상 이송 포인트 추천 시스템</p>
+      </div>
+      <div style="text-align: center;">
+        <img src="/images/qr-code.png" alt="Traumapoint QR" style="height: 100px; margin-left: 20px;" />
+        <button onclick="shareQR()" style="margin-top: 8px;">📤 QR 코드 공유하기</button>
+      </div>
     </div>
-    <div style="text-align: center;">
-      <!-- QR 코드 이미지 -->
-      <img src="/images/qr-code.png" alt="Traumapoint QR" style="height: 100px; margin-left: 20px;" />
-      <!-- 공유 버튼 -->
-      <button onclick="shareQR()" style="margin-top: 8px;">📤 QR 코드 공유하기</button>
-    </div>
-  </div>
   </header>
 
   <main>
@@ -29,17 +27,22 @@
     <button id="searchBtn">추천 받기</button>
     <button id="currentLocationBtn">📍 현재 위치에서 추천받기</button>
     <button id="copyAppLink">Traumapoint 앱 공유하기</button>
+
+    <!-- ✅ 로딩 메시지 위치 -->
+    <div id="loading" style="display:none; font-weight:bold; margin:10px; text-align:center;">
+      ⏳ 경로 추천 계산 중입니다. 잠시만 기다려주세요...
+    </div>
+
     <div id="results"></div>
     <div id="map" style="width:100%; height:400px;"></div>
   </main>
 
-  <!-- ✅ 책임 회피 문구 및 제작자 정보 -->
   <footer style="padding: 15px; text-align: center; font-size: 0.9em; color: #777;">
     ⚠️ 이 앱은 참고용으로 제공됩니다.<br>
     실제 이송 판단 및 조치는 구급대나 의료진 등 전문가의 최종 판단에 따라야 합니다.<br>
     <span style="color: red; font-weight: bold;">본 앱은 정보 제공에 대한 법적 책임을 지지 않습니다.</span><br><br>
-© 2025 Jaeik Jang, MD. All rights reserved. l Contact: <a href="mailto:blanc7654@gmail.com">blanc7654@gmail.com</a><br>
-본 앱은 인천, 김포, 광명, 부천, 시흥 지역의 2025년 4월 시점에서의 모든 응급실, 소방서 정보를 포함합니다.
+    © 2025 Jaeik Jang, MD. All rights reserved. l Contact: <a href="mailto:blanc7654@gmail.com">blanc7654@gmail.com</a><br>
+    본 앱은 인천, 김포, 광명, 부천, 시흥 지역의 2025년 4월 시점에서의 모든 응급실, 소방서 정보를 포함합니다.
   </footer>
 
   <script src="/app.js"></script>
@@ -49,14 +52,14 @@
       alert("✅ Traumapoint 기본 링크가 복사되었습니다!");
     });
 
-  function shareQR() {
-    const imageUrl = window.location.origin + "/images/qr-code.png";
-    navigator.clipboard.writeText(imageUrl).then(() => {
-      alert("📎 QR 코드 이미지 링크가 복사되었습니다!\n" + imageUrl);
-    }).catch(err => {
-      alert("❌ 복사 실패: " + err);
-    });
-  }
+    function shareQR() {
+      const imageUrl = window.location.origin + "/images/qr-code.png";
+      navigator.clipboard.writeText(imageUrl).then(() => {
+        alert("📎 QR 코드 이미지 링크가 복사되었습니다!\n" + imageUrl);
+      }).catch(err => {
+        alert("❌ 복사 실패: " + err);
+      });
+    }
   </script>
 </body>
 </html>

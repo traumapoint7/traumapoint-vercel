@@ -39,17 +39,7 @@ window.onload = function () {
           });
           map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
 
-          fetch('/api/traumapoint', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ origin })
-          })
-            .then(res => res.json())
-            .then(data => showResults(data.recommendations, origin))
-            .catch(err => {
-              console.error("🚨 API 호출 실패:", err);
-              alert("추천 실패. 다시 시도해주세요.");
-            });
+          requestRecommendation(origin);
         },
         err => {
           console.error("❌ 위치 정보 오류:", err.message);
@@ -67,13 +57,7 @@ window.onload = function () {
   const y = parseFloat(params.get('y'));
   if (x && y) {
     const origin = { x, y };
-    fetch('/api/traumapoint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin })
-    })
-      .then(res => res.json())
-      .then(data => showResults(data.recommendations, origin));
+    requestRecommendation(origin);
   }
 };
 
@@ -131,17 +115,7 @@ function findTraumapoint() {
       });
       map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
 
-      fetch('/api/traumapoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ origin })
-      })
-        .then(res => res.json())
-        .then(data => showResults(data.recommendations, origin))
-        .catch(err => {
-          console.error('API 호출 실패:', err);
-          alert("추천 실패. 다시 시도해주세요.");
-        });
+      requestRecommendation(origin);
     })
     .catch(err => {
       console.error('장소 검색 실패:', err);
@@ -149,57 +123,34 @@ function findTraumapoint() {
     });
 }
 
-function showResults(routes, origin) {
-  const container = document.getElementById('results');
-  container.innerHTML = '';
+// ✅ 로딩 표시 함수
+function showLoading() {
+  const loadingDiv = document.getElementById('loading');
+  if (loadingDiv) loadingDiv.style.display = 'block';
+}
 
-  if (!routes || !Array.isArray(routes) || routes.length === 0) {
-    container.innerHTML = '<p>❌ 추천할 수 있는 Traumapoint가 없습니다.</p>';
-    return;
-  }
+function hideLoading() {
+  const loadingDiv = document.getElementById('loading');
+  if (loadingDiv) loadingDiv.style.display = 'none';
+}
 
-  routes.sort((a, b) => parseFloat(a.total) - parseFloat(b.total));
+// ✅ 추천 API 호출 함수
+function requestRecommendation(origin) {
+  showLoading();
 
-  routes.forEach(tp => {
-    const eta119 = parseFloat(tp.eta119);
-    const docArrival = parseFloat(tp.etaDoc); // 이미 +15 된 값
-    const gain = (eta119 - docArrival).toFixed(1);
-
-    let status = '';
-    let color = '';
-
-    if (gain <= 5) {
-      status = 'Danger';
-      color = 'red';
-    } else if (gain <= 10) {
-      status = 'On-time';
-      color = 'blue';
-    } else {
-      status = 'Safe';
-      color = 'green';
-    }
-
-    container.innerHTML += `
-      <div class="hospital" style="padding:10px; margin-bottom:10px;">
-        <h4>🏥 ${tp.name} ${tp.level ? `(${tp.level})` : ''}</h4>
-        <ul>
-          <li><strong>🕒 119 ETA: ${tp.eta119}분</strong></li>
-          <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 먼저 도착 <span style="color:${color}; font-weight:bold;">${status}</span></li>
-          <li class="highlight"><strong>⏱ 🚨 총 이송시간: ${tp.total}분</strong> (<span style="color:red; font-weight:bold;">🩺 의사 접촉: ${tp.eta119}분</span>)</li>
-          <li><span style="color:red; font-weight: bold;">🚨 길병원 다이렉트 이송 시: ${tp.directToGilETA}분</span></li>
-          <li>📍 주소: ${tp.address || '정보 없음'}</li>
-          <li>📞 전화번호: ${tp.tel || '정보 없음'}</li>
-        </ul>
-      </div>
-    `;
-  });
-
-  const shareUrl = `${window.location.origin}?x=${origin.x}&y=${origin.y}`;
-  container.innerHTML += `
-    <p>
-      <a href="#" class="tmap-link" onclick="navigator.clipboard.writeText('${shareUrl}'); alert('📎 링크가 복사되었습니다: ${shareUrl}'); return false;">
-        🔗 결과 공유하기
-      </a>
-    </p>
-  `;
+  fetch('/api/traumapoint', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ origin })
+  })
+    .then(res => res.json())
+    .then(data => {
+      hideLoading();
+      showResults(data.recommendations, origin);
+    })
+    .catch(err => {
+      hideLoading();
+      console.error("🚨 API 호출 실패:", err);
+      alert("추천 실패. 다시 시도해주세요.");
+    });
 }
