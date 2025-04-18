@@ -1,6 +1,29 @@
 {
+  "name": "traumapoint-vercel",
+  "version": "1.0.0",
+  "description": "외상환자 이송 경로를 계산하고, 최적 병원/소방서를 추천하는 웹앱입니다.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
   "dependencies": {
     "csvtojson": "^2.0.10",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.2",
+    "firebase": "^11.6.0",
     "node-fetch": "^3.3.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/traumapoint7/traumapoint-vercel.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/traumapoint7/traumapoint-vercel/issues"
+  },
+  "homepage": "https://github.com/traumapoint7/traumapoint-vercel#readme"
 }
