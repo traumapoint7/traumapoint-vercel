@@ -21,7 +21,6 @@ window.onload = function () {
   document.getElementById('searchBtn').addEventListener('click', findTraumapoint);
   document.getElementById('startInput').addEventListener('input', handleAutocomplete);
 
-  // ✅ 현재 위치 버튼 동작
   document.getElementById('currentLocationBtn')?.addEventListener('click', () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -35,7 +34,7 @@ window.onload = function () {
           new Tmapv2.Marker({
             position: new Tmapv2.LatLng(origin.y, origin.x),
             map: map,
-            title: "현재 위치" // ❌ icon 제거하여 기본 마커 사용
+            title: "현재 위치"
           });
 
           map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
@@ -69,7 +68,12 @@ function handleAutocomplete(e) {
   if (!keyword.trim()) return;
 
   fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(keyword)}&appKey=${tmapKey}`)
-    .then(res => res.json())
+    .then(async res => {
+      if (!res.ok) throw new Error("Tmap API 응답 실패");
+      const text = await res.text();
+      if (!text) throw new Error("응답 없음");
+      return JSON.parse(text);
+    })
     .then(data => {
       const pois = data.searchPoiInfo?.pois?.poi || [];
       pois.slice(0, 5).forEach(poi => {
@@ -83,7 +87,7 @@ function handleAutocomplete(e) {
       });
     })
     .catch(err => {
-      console.error('자동완성 실패:', err);
+      console.error('자동완성 실패:', err.message);
     });
 }
 
@@ -93,7 +97,12 @@ function findTraumapoint() {
   suggestionsBox.innerHTML = '';
 
   fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(keyword)}&appKey=${tmapKey}`)
-    .then(res => res.json())
+    .then(async res => {
+      if (!res.ok) throw new Error("Tmap 장소 검색 실패");
+      const text = await res.text();
+      if (!text) throw new Error("응답 없음");
+      return JSON.parse(text);
+    })
     .then(data => {
       const pois = data.searchPoiInfo?.pois?.poi;
       if (!pois || pois.length === 0) {
@@ -110,14 +119,14 @@ function findTraumapoint() {
       new Tmapv2.Marker({
         position: new Tmapv2.LatLng(origin.y, origin.x),
         map: map,
-        title: "검색한 위치" // ❌ icon 제거
+        title: "검색한 위치"
       });
       map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
 
       requestRecommendation(origin);
     })
     .catch(err => {
-      console.error('장소 검색 실패:', err);
+      console.error('장소 검색 실패:', err.message);
       alert("장소 검색 실패. 다시 시도해주세요.");
     });
 }
@@ -147,7 +156,7 @@ function requestRecommendation(origin) {
     })
     .catch(err => {
       hideLoading();
-      console.error("🚨 API 호출 실패:", err);
+      console.error("🚨 API 호출 실패:", err.message);
       alert("추천 실패. 다시 시도해주세요.");
     });
 }
