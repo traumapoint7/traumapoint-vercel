@@ -1,6 +1,5 @@
 let map;
 let tmapKey = 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m';
-let currentMarkers = [];
 
 window.onload = function () {
   map = new Tmapv2.Map("map", {
@@ -32,14 +31,11 @@ window.onload = function () {
           };
           console.log("📍 현재 위치 좌표:", origin);
 
-          clearMarkers();
-
-          const marker = new Tmapv2.Marker({
+          new Tmapv2.Marker({
             position: new Tmapv2.LatLng(origin.y, origin.x),
             map: map,
             title: "현재 위치"
           });
-          currentMarkers.push(marker);
 
           map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
           requestRecommendation(origin);
@@ -60,14 +56,6 @@ window.onload = function () {
   const y = parseFloat(params.get('y'));
   if (x && y) {
     const origin = { x, y };
-    clearMarkers();
-    const marker = new Tmapv2.Marker({
-      position: new Tmapv2.LatLng(y, x),
-      map: map,
-      title: "공유된 위치"
-    });
-    currentMarkers.push(marker);
-    map.setCenter(new Tmapv2.LatLng(y, x));
     requestRecommendation(origin);
   }
 };
@@ -128,16 +116,13 @@ function findTraumapoint() {
         y: parseFloat(place.frontLat)
       };
 
-      clearMarkers();
-
-      const marker = new Tmapv2.Marker({
+      new Tmapv2.Marker({
         position: new Tmapv2.LatLng(origin.y, origin.x),
         map: map,
         title: "검색한 위치"
       });
-      currentMarkers.push(marker);
-
       map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
+
       requestRecommendation(origin);
     })
     .catch(err => {
@@ -164,7 +149,13 @@ function requestRecommendation(origin) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ origin })
   })
-    .then(res => res.json())
+    .then(async res => {
+      const text = await res.text();
+      console.log("🔍 API 상태코드:", res.status);
+      console.log("🔍 응답 내용:", text);
+      if (!res.ok) throw new Error("서버 오류: " + res.status);
+      return JSON.parse(text);
+    })
     .then(data => {
       hideLoading();
       showResults(data.recommendations, origin);
@@ -172,7 +163,7 @@ function requestRecommendation(origin) {
     .catch(err => {
       hideLoading();
       console.error("🚨 API 호출 실패:", err.message);
-      alert("추천 실패. 다시 시도해주세요.");
+      alert("추천 실패: " + err.message);
     });
 }
 
@@ -180,16 +171,12 @@ function showResults(routes, origin) {
   const container = document.getElementById('results');
   container.innerHTML = '';
 
-  clearMarkers(); // 이전 마커 삭제
-
   if (!routes || routes.length === 0) {
     container.innerHTML = '<p>❌ 추천 결과가 없습니다.</p>';
     return;
   }
 
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-  routes.forEach((tp, i) => {
+  routes.forEach(tp => {
     const eta119 = parseFloat(tp.eta119);
     const docArrival = parseFloat(tp.etaDoc);
     const gain = (eta119 - docArrival).toFixed(1);
@@ -203,14 +190,6 @@ function showResults(routes, origin) {
       status = 'On-time';
       color = 'blue';
     }
-
-    const marker = new Tmapv2.Marker({
-      position: new Tmapv2.LatLng(tp.y, tp.x),
-      map: map,
-      icon: `http://tmapapi.sktelecom.com/upload/tmap/marker/pin_b_${alphabet[i]}.png`,
-      title: tp.name
-    });
-    currentMarkers.push(marker);
 
     container.innerHTML += `
       <div class="hospital" style="padding:10px; border:1px solid #ccc; margin-bottom:10px;">
@@ -235,9 +214,4 @@ function showResults(routes, origin) {
       </a>
     </p>
   `;
-}
-
-function clearMarkers() {
-  currentMarkers.forEach(marker => marker.setMap(null));
-  currentMarkers = [];
 }
