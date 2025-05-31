@@ -9,7 +9,7 @@ window.onload = function () {
     zoom: 12
   });
 
-  fetch('/data/traumaPoints.json')
+  fetch('/data/traumaPoints_within_9km.json')
     .then(res => res.json())
     .then(data => {
       console.log("✅ traumaPoints loaded:", data);
@@ -26,18 +26,18 @@ window.onload = function () {
       navigator.geolocation.getCurrentPosition(
         pos => {
           const origin = {
-            x: parseFloat(pos.coords.longitude.toFixed(7)),
-            y: parseFloat(pos.coords.latitude.toFixed(7))
+            lat: parseFloat(pos.coords.latitude.toFixed(7)),
+            lon: parseFloat(pos.coords.longitude.toFixed(7))
           };
           console.log("📍 현재 위치 좌표:", origin);
 
           new Tmapv2.Marker({
-            position: new Tmapv2.LatLng(origin.y, origin.x),
+            position: new Tmapv2.LatLng(origin.lat, origin.lon),
             map: map,
             title: "현재 위치"
           });
 
-          map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
+          map.setCenter(new Tmapv2.LatLng(origin.lat, origin.lon));
           requestRecommendation(origin);
         },
         err => {
@@ -51,11 +51,12 @@ window.onload = function () {
     }
   });
 
+  // 공유 링크 파라미터로 시작할 경우 자동 호출
   const params = new URLSearchParams(window.location.search);
-  const x = parseFloat(params.get('x'));
-  const y = parseFloat(params.get('y'));
-  if (x && y) {
-    const origin = { x, y };
+  const lat = parseFloat(params.get('lat'));
+  const lon = parseFloat(params.get('lon'));
+  if (lat && lon) {
+    const origin = { lat, lon };
     requestRecommendation(origin);
   }
 };
@@ -69,7 +70,7 @@ function handleAutocomplete(e) {
 
   fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(keyword)}&appKey=${tmapKey}`)
     .then(async res => {
-      if (!res.ok) throw new Error("Tmap API 응답 실패");
+      if (!res.ok) throw new Error("Tmap 응답 실패");
       const text = await res.text();
       if (!text) throw new Error("응답 없음");
       return JSON.parse(text);
@@ -87,7 +88,7 @@ function handleAutocomplete(e) {
       });
     })
     .catch(err => {
-      console.error('자동완성 실패:', err.message);
+      console.error("자동완성 실패:", err.message);
     });
 }
 
@@ -112,21 +113,21 @@ function findTraumapoint() {
 
       const place = pois[0];
       const origin = {
-        x: parseFloat(place.frontLon),
-        y: parseFloat(place.frontLat)
+        lat: parseFloat(place.frontLat),
+        lon: parseFloat(place.frontLon)
       };
 
       new Tmapv2.Marker({
-        position: new Tmapv2.LatLng(origin.y, origin.x),
+        position: new Tmapv2.LatLng(origin.lat, origin.lon),
         map: map,
         title: "검색한 위치"
       });
-      map.setCenter(new Tmapv2.LatLng(origin.y, origin.x));
 
+      map.setCenter(new Tmapv2.LatLng(origin.lat, origin.lon));
       requestRecommendation(origin);
     })
     .catch(err => {
-      console.error('장소 검색 실패:', err.message);
+      console.error("장소 검색 실패:", err.message);
       alert("장소 검색 실패. 다시 시도해주세요.");
     });
 }
@@ -150,10 +151,10 @@ function requestRecommendation(origin) {
     body: JSON.stringify({ origin })
   })
     .then(async res => {
-      const text = await res.text();
       console.log("🔍 API 상태코드:", res.status);
+      const text = await res.text();
       console.log("🔍 응답 내용:", text);
-      if (!res.ok) throw new Error("서버 오류: " + res.status);
+      if (!res.ok) throw new Error("API 실패");
       return JSON.parse(text);
     })
     .then(data => {
@@ -163,50 +164,41 @@ function requestRecommendation(origin) {
     .catch(err => {
       hideLoading();
       console.error("🚨 API 호출 실패:", err.message);
-      alert("추천 실패: " + err.message);
+      alert("추천 실패. 다시 시도해주세요.");
     });
 }
 
-function showResults(routes, origin) {
+function showResults(groups, origin) {
   const container = document.getElementById('results');
   container.innerHTML = '';
 
-  if (!routes || routes.length === 0) {
+  if (!groups || Object.keys(groups).length === 0) {
     container.innerHTML = '<p>❌ 추천 결과가 없습니다.</p>';
     return;
   }
 
-  routes.forEach(tp => {
-    const eta119 = parseFloat(tp.eta119);
-    const docArrival = parseFloat(tp.etaDoc);
-    const gain = (eta119 - docArrival).toFixed(1);
-
-    let status = 'Safe';
-    let color = 'green';
-    if (gain < 5) {
-      status = 'Danger';
-      color = 'red';
-    } else if (gain < 10) {
-      status = 'On-time';
-      color = 'blue';
+  ['safe', 'accurate', 'fast'].forEach(category => {
+    if (groups[category]?.length > 0) {
+      container.innerHTML += `<h3>${category.toUpperCase()} 인계지점 추천</h3>`;
+      groups[category].forEach(tp => {
+        const gain = tp.eta119 - tp.etaDoc;
+        container.innerHTML += `
+          <div class="hospital" style="padding:10px; border:1px solid #ccc; margin-bottom:10px;">
+            <h4>🏥 ${tp.name}</h4>
+            <ul>
+              <li><b>119 ETA(의사접촉시간): ${tp.eta119}분</b></li>
+              <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 빠름</li>
+              <li>➡️ 인계 후 길병원까지: ${tp.tptogilETA}분</li>
+              <li><b style="color:red;">총 이송 시간: ${tp.totalTransfer}분</b></li>
+              <li>🚨 길병원 직접 이송 시 ETA: ${tp.directToGilETA}분</li>
+            </ul>
+          </div>
+        `;
+      });
     }
-
-    container.innerHTML += `
-      <div class="hospital" style="padding:10px; border:1px solid #ccc; margin-bottom:10px;">
-        <h4>🏥 ${tp.name} ${tp.level ? `(${tp.level})` : ''}</h4>
-        <ul>
-          <li>🕒 119 ETA: ${tp.eta119}분</li>
-          <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 빠름 <span style="color:${color}; font-weight:bold;">${status}</span></li>
-          <li><strong>⏱ 총 이송시간: ${tp.total}분</strong></li>
-          <li>🚨 길병원 바로 이송 시: ${tp.directToGilETA}분</li>
-          <li>📍 ${tp.address}</li>
-          <li>📞 ${tp.tel}</li>
-        </ul>
-      </div>
-    `;
   });
 
-  const shareUrl = `${window.location.origin}?x=${origin.x}&y=${origin.y}`;
+  const shareUrl = `${window.location.origin}?lat=${origin.lat}&lon=${origin.lon}`;
   container.innerHTML += `
     <p>
       <a href="#" onclick="navigator.clipboard.writeText('${shareUrl}'); alert('📎 링크 복사됨: ${shareUrl}'); return false;">

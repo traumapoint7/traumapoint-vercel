@@ -1,25 +1,13 @@
-// api/traumapoint.js
-import { getCachedETA, setCachedETA } from "../lib/cache.js";
-import { getWeekday, getTimeSlot } from "../utils/timeSlot.js";
-import { haversineDistance } from "../lib/geo.js";
-import { getKakaoETA } from "../lib/geo/kakaoDirections.js";
-import { getKakaoMultiDestinationETAs } from "../lib/geo/kakaoMultiDirections.js";
-import { getMultiOriginETAs } from "../lib/geo/kakaoMultiOrigins.js";
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import { getTmapRoute } from "../lib/geo/tmapRoute.js";
+import fs from "fs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const gilHospital = { x: 126.7214, y: 37.4487 };
+const traumaPoints = JSON.parse(fs.readFileSync("./data/traumaPoints_within_9km.json", "utf-8"));
 
-// ✅ 청크 유틸
-function chunkArray(array, size) {
-  const chunks = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
-}
+const GIL = {
+  name: "길병원",
+  lat: 37.4484902659502,
+  lon: 126.75475575788,
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -27,136 +15,101 @@ export default async function handler(req, res) {
   }
 
   const { origin } = req.body;
-  const now = new Date();
-  const weekday = getWeekday(now);
-  const timeSlot = getTimeSlot(now);
-
-  const traumaPath = path.join(__dirname, "../data/traumaPoints.json");
-  const traumaPoints = JSON.parse(await fs.readFile(traumaPath, "utf8"));
-
-  const validTPs = traumaPoints
-    .filter(tp => tp.x && tp.y && !isNaN(tp.x) && !isNaN(tp.y))
-    .map(tp => ({ ...tp, x: parseFloat(tp.x), y: parseFloat(tp.y) }))
-    .filter(tp => haversineDistance(origin, tp) <= haversineDistance(origin, gilHospital));
-
-  // ✅ directToGil
-  let directToGil = await getCachedETA(origin, gilHospital, weekday, timeSlot, "originToGil");
-  if (directToGil == null) {
-    directToGil = await getKakaoETA(origin, gilHospital);
-    if (directToGil != null) {
-      await setCachedETA(origin, gilHospital, weekday, timeSlot, directToGil, "originToGil");
-    }
+  if (!origin || typeof origin.lat !== "number" || typeof origin.lon !== "number") {
+    return res.status(400).json({ error: "Invalid origin (lat/lon required)" });
   }
 
-  if (directToGil == null) return res.status(500).json({ message: "❌ directToGil 계산 실패" });
+  try {
+    const originPoint = { lat: origin.lat, lon: origin.lon };
 
-  // ✅ origin → tp
-  const eta119List = await Promise.all(
-    validTPs.map(tp => getCachedETA(origin, tp, weekday, timeSlot, "originToTp"))
-  );
+    // 길병원 직송 ETA
+    const directToGil = await getTmapRoute(originPoint, GIL);
+    const directToGilETA = Math.round(directToGil.duration / 60);
 
-  const missingIndexes = eta119List.map((eta, i) => (eta == null ? i : null)).filter(i => i != null);
-  const missingTPs = missingIndexes.map(i => validTPs[i]);
+    // 1. origin → traumaPoints (119)
+    const eta119List = await Promise.all(
+      traumaPoints.map(async (tp) => {
+        const route = await getTmapRoute(originPoint, tp);
+        const eta119 = Math.round(route.duration / 60);
+        if (eta119 <= directToGilETA + 20) return null;
+        return { ...tp, eta119 };
+      })
+    );
 
-  // ✅ 다중 목적지 API 호출 (청크 처리)
-  const chunks = chunkArray(missingTPs, 30);
-  let fetchedETAs = [];
-  for (const chunk of chunks) {
-    const chunkETAs = await getKakaoMultiDestinationETAs(origin, chunk);
-    fetchedETAs.push(...chunkETAs);
+    // 2. 길병원 → traumaPoints (닥터카)
+    const withDocETA = await Promise.all(
+      eta119List.filter(Boolean).map(async (tp) => {
+        const route = await getTmapRoute(GIL, tp, { departureOffsetMin: 15 });
+        const etaDocRaw = Math.round(route.duration / 60); // 15분 지연 시점의 교통 기준
+        const etaDoc = etaDocRaw + 15; // 출발 지연 시간 더함
+
+        if (tp.eta119 <= etaDoc) return null;
+        if (etaDocRaw > directToGilETA + 20) return null;
+
+        return { ...tp, eta119: tp.eta119, etaDoc, etaDocRaw };
+      })
+    );
+
+    // 3. traumaPoint → 길병원 (인계 시점부터)
+    const withTpToGil = await Promise.all(
+      withDocETA.filter(Boolean).map(async (tp) => {
+        const departure = new Date();
+        departure.setMinutes(departure.getMinutes() + tp.eta119); // 119 도착 시점 기준
+        const route = await getTmapRoute(tp, GIL, { departureTime: departure });
+        const tptogilETA = Math.round(route.duration / 60);
+        const totalTransfer = tp.eta119 + tptogilETA;
+
+        if (totalTransfer > directToGilETA + 20) return null;
+
+        return {
+          name: tp.name,
+          lat: tp.lat,
+          lon: tp.lon,
+          eta119: tp.eta119,
+          etaDoc: tp.etaDoc,
+          etaDocRaw: tp.etaDocRaw,
+          tptogilETA,
+          totalTransfer
+        };
+      })
+    );
+
+    // 그룹 분류
+    const grouped = { safe: [], accurate: [], fast: [] };
+
+    withTpToGil.filter(Boolean).forEach(tp => {
+      const gain = tp.eta119 - tp.etaDoc;
+      const entry = {
+        name: tp.name,
+        lat: tp.lat,
+        lon: tp.lon,
+        eta119: tp.eta119,
+        etaDoc: tp.etaDoc,
+        etaDocRaw: tp.etaDocRaw,
+        tptogilETA: tp.tptogilETA,
+        totalTransfer: tp.totalTransfer,
+      };
+
+      if (gain >= 10) grouped.safe.push(entry);
+      else if (gain >= 5) grouped.accurate.push(entry);
+      else if (gain >= 3) grouped.fast.push(entry);
+    });
+
+    // 그룹 정렬: 총 이송시간 기준 오름차순
+    Object.keys(grouped).forEach(key => {
+      grouped[key] = grouped[key]
+        .sort((a, b) => a.totalTransfer - b.totalTransfer)
+        .slice(0, 4);
+    });
+
+    res.status(200).json({
+      origin,
+      directToGilETA,
+      recommendations: grouped,
+    });
+
+  } catch (e) {
+    console.error("🚨 Tmap 계산 실패:", e);
+    res.status(500).json({ error: e.message || "Tmap API 호출 오류" });
   }
-
-  for (let i = 0; i < missingIndexes.length; i++) {
-    const idx = missingIndexes[i];
-    const eta = fetchedETAs[i];
-    if (eta != null) {
-      eta119List[idx] = eta;
-      await setCachedETA(origin, validTPs[idx], weekday, timeSlot, eta, "originToTp");
-    }
-  }
-
-  const candidates = validTPs.filter((tp, i) => eta119List[i] != null && eta119List[i] < directToGil);
-
-  // ✅ gil → tp (청크 처리)
-  const gilToTpList = await Promise.all(
-    candidates.map(tp => getCachedETA(gilHospital, tp, weekday, timeSlot, "gilToTp"))
-  );
-
-  const gilMissingIdx = gilToTpList.map((eta, i) => (eta == null ? i : null)).filter(i => i != null);
-  const gilMissingTPs = gilMissingIdx.map(i => candidates[i]);
-
-  const gilChunks = chunkArray(gilMissingTPs, 30);
-  let gilFetchedETAs = [];
-  for (const chunk of gilChunks) {
-    const chunkETAs = await getKakaoMultiDestinationETAs(gilHospital, chunk);
-    gilFetchedETAs.push(...chunkETAs);
-  }
-
-  for (let i = 0; i < gilMissingIdx.length; i++) {
-    const idx = gilMissingIdx[i];
-    const eta = gilFetchedETAs[i];
-    if (eta != null) {
-      gilToTpList[idx] = eta;
-      await setCachedETA(gilHospital, candidates[idx], weekday, timeSlot, eta, "gilToTp");
-    }
-  }
-
-  const docArrivalList = gilToTpList.map(eta => (eta != null ? eta + 15 : null));
-
-  const docFiltered = candidates.filter((tp, i) => {
-    const eta119 = eta119List[validTPs.indexOf(tp)];
-    const docArrival = docArrivalList[i];
-    return eta119 && docArrival && eta119 > docArrival;
-  });
-
-  // ✅ tp → gil (청크 처리: 다중 출발지)
-  const tpToGilList = await Promise.all(
-    docFiltered.map(tp => getCachedETA(tp, gilHospital, weekday, timeSlot, "tpToGil"))
-  );
-
-  const tpMissingIdx = tpToGilList.map((eta, i) => (eta == null ? i : null)).filter(i => i != null);
-  const tpMissingTPs = tpMissingIdx.map(i => docFiltered[i]);
-
-  const tpChunks = chunkArray(tpMissingTPs, 30);
-  let tpFetchedETAs = [];
-  for (const chunk of tpChunks) {
-    const chunkETAs = await getMultiOriginETAs(chunk, gilHospital);
-    tpFetchedETAs.push(...chunkETAs);
-  }
-
-  for (let i = 0; i < tpMissingIdx.length; i++) {
-    const idx = tpMissingIdx[i];
-    const eta = tpFetchedETAs[i];
-    if (eta != null) {
-      tpToGilList[idx] = eta;
-      await setCachedETA(docFiltered[idx], gilHospital, weekday, timeSlot, eta, "tpToGil");
-    }
-  }
-
-  // ✅ 최종 정리
-  const results = docFiltered.map((tp, i) => {
-    const eta119 = eta119List[validTPs.indexOf(tp)];
-    const etaDoc = docArrivalList[i];
-    const tpToGil = tpToGilList[i];
-    const total = eta119 + tpToGil;
-    const gain = eta119 - etaDoc;
-    const category = gain < 5 ? "Danger" : gain < 10 ? "On-time" : "Safe";
-
-    return {
-      name: tp.name,
-      address: tp.address,
-      tel: tp.tel,
-      level: tp.level,
-      type: tp.type,
-      eta119: eta119?.toFixed(1),
-      etaDoc: etaDoc?.toFixed(1),
-      tpToGil: tpToGil?.toFixed(1),
-      total: total?.toFixed(1),
-      directToGilETA: directToGil?.toFixed(1),
-      category
-    };
-  });
-
-  results.sort((a, b) => parseFloat(a.total) - parseFloat(b.total));
-  res.status(200).json({ recommendations: results.slice(0, 10) });
 }

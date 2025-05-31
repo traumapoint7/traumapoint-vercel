@@ -1,4 +1,11 @@
 // server.js
+
+import dotenv from 'dotenv';         // ✅ 추가
+dotenv.config();                     // ✅ 실행
+
+console.log("✅ dotenv 로드됨");
+console.log("🔑 TMAP_APP_KEY:", process.env.TMAP_APP_KEY);
+
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
