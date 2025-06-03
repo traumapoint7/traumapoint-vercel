@@ -6,7 +6,13 @@
   ],
   "functions": {
     "api/traumapoint.js": {
+      "runtime": "nodejs22.x",   
       "maxDuration": 60
+    }
+  },
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
     }
   }
 }

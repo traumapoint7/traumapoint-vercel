@@ -16,6 +16,9 @@
     "firebase": "^11.6.0",
     "node-fetch": "^3.3.2"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/traumapoint7/traumapoint-vercel.git"
