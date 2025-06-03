@@ -189,6 +189,6 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error("🚨 Tmap 계산 실패:", e);
-    res.status(500).json({ error: e.message || "Tmap API 호출 오류" });
+    res.status(500).json({ error: e.message, stack: e.stack });
   }
 }
