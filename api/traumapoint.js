@@ -1,14 +1,16 @@
-import { getTmapRoute } from "../lib/geo/tmapRoute.js";
+import path from "path";
+import { promises as fs } from "fs";
+import { getTmapRoute } from "../../lib/geo/tmapRoute.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
-  // ✅ JSON 파일 동적 import
-  const traumaPoints = await import("../../data/traumaPoints_within_9km.json", {
-    assert: { type: "json" }
-  }).then(module => module.default);
+  try {
+    const filePath = path.join(process.cwd(), "data", "traumaPoints_within_9km.json");
+    const data = await fs.readFile(filePath, "utf-8");
+    const traumaPoints = JSON.parse(data);
 
 
 const GIL = {
