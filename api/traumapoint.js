@@ -1,6 +1,6 @@
 import path from "path";
 import { promises as fs } from "fs";
-import { getTmapRoute } from "../../lib/geo/tmapRoute.js";
+import { getTmapRoute } from "../../lib/geo/tmapRoute.js"; // 그대로 유지
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,10 +8,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    // ✅ traumaPoints 로딩
     const filePath = path.join(process.cwd(), "data", "traumaPoints_within_9km.json");
-    const data = await fs.readFile(filePath, "utf-8");
-    const traumaPoints = JSON.parse(data);
-
+    const traumaPointsRaw = await fs.readFile(filePath, "utf-8");
+    const traumaPoints = JSON.parse(traumaPointsRaw);
 
 const GIL = {
   name: "길병원",
