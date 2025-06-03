@@ -10,8 +10,10 @@ export default async function handler(req, res) {
   try {
     // ✅ traumaPoints 로딩
     const filePath = path.join(process.cwd(), "data", "traumaPoints_within_9km.json");
+    console.log("📁 JSON 경로:", filePath);  // 🔍 절대 경로 확인
     const traumaPointsRaw = await fs.readFile(filePath, "utf-8");
     const traumaPoints = JSON.parse(traumaPointsRaw);
+    console.log("✅ traumaPoints 파일 읽기 성공");
 
 const GIL = {
   name: "길병원",
