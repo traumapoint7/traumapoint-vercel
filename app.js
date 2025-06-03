@@ -1,4 +1,5 @@
 let map;
+let selectedPlace = null;
 let tmapKey = 'tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m';
 
 window.onload = function () {
@@ -51,7 +52,18 @@ window.onload = function () {
     }
   });
 
-  // 공유 링크 파라미터로 시작할 경우 자동 호출
+  const container = document.getElementById('carouselContainer');
+  const indicator = document.getElementById('slideIndicator');
+  const dot = document.getElementById('dotIndicator');
+
+  container?.addEventListener('scroll', () => {
+    const width = container.offsetWidth;
+    const scrollLeft = container.scrollLeft;
+    const pageIndex = Math.round(scrollLeft / width) + 1;
+    indicator.textContent = `${pageIndex} / 3`;
+    dot.textContent = ['● ○ ○', '○ ● ○', '○ ○ ●'][pageIndex - 1] || '● ○ ○';
+  });
+
   const params = new URLSearchParams(window.location.search);
   const lat = parseFloat(params.get('lat'));
   const lon = parseFloat(params.get('lon'));
@@ -82,6 +94,10 @@ function handleAutocomplete(e) {
         div.textContent = poi.name;
         div.addEventListener('click', () => {
           document.getElementById('startInput').value = poi.name;
+          selectedPlace = {
+            lat: parseFloat(poi.frontLat),
+            lon: parseFloat(poi.frontLon)
+          };
           suggestionsBox.innerHTML = '';
         });
         suggestionsBox.appendChild(div);
@@ -93,43 +109,22 @@ function handleAutocomplete(e) {
 }
 
 function findTraumapoint() {
-  const keyword = document.getElementById('startInput').value;
   const suggestionsBox = document.getElementById('suggestions');
   suggestionsBox.innerHTML = '';
 
-  fetch(`https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(keyword)}&appKey=${tmapKey}`)
-    .then(async res => {
-      if (!res.ok) throw new Error("Tmap 장소 검색 실패");
-      const text = await res.text();
-      if (!text) throw new Error("응답 없음");
-      return JSON.parse(text);
-    })
-    .then(data => {
-      const pois = data.searchPoiInfo?.pois?.poi;
-      if (!pois || pois.length === 0) {
-        alert("출발지를 찾을 수 없습니다.");
-        return;
-      }
+  if (!selectedPlace) {
+    alert("자동완성 목록에서 장소를 먼저 선택해주세요.");
+    return;
+  }
 
-      const place = pois[0];
-      const origin = {
-        lat: parseFloat(place.frontLat),
-        lon: parseFloat(place.frontLon)
-      };
+  new Tmapv2.Marker({
+    position: new Tmapv2.LatLng(selectedPlace.lat, selectedPlace.lon),
+    map: map,
+    title: "선택한 위치"
+  });
 
-      new Tmapv2.Marker({
-        position: new Tmapv2.LatLng(origin.lat, origin.lon),
-        map: map,
-        title: "검색한 위치"
-      });
-
-      map.setCenter(new Tmapv2.LatLng(origin.lat, origin.lon));
-      requestRecommendation(origin);
-    })
-    .catch(err => {
-      console.error("장소 검색 실패:", err.message);
-      alert("장소 검색 실패. 다시 시도해주세요.");
-    });
+  map.setCenter(new Tmapv2.LatLng(selectedPlace.lat, selectedPlace.lon));
+  requestRecommendation(selectedPlace);
 }
 
 function showLoading() {
@@ -159,7 +154,7 @@ function requestRecommendation(origin) {
     })
     .then(data => {
       hideLoading();
-      showResults(data.recommendations, origin);
+      showResults(data.recommendations, origin, data.directToGilETA);
     })
     .catch(err => {
       hideLoading();
@@ -168,42 +163,77 @@ function requestRecommendation(origin) {
     });
 }
 
-function showResults(groups, origin) {
-  const container = document.getElementById('results');
-  container.innerHTML = '';
-
-  if (!groups || Object.keys(groups).length === 0) {
-    container.innerHTML = '<p>❌ 추천 결과가 없습니다.</p>';
-    return;
-  }
-
-  ['safe', 'accurate', 'fast'].forEach(category => {
-    if (groups[category]?.length > 0) {
-      container.innerHTML += `<h3>${category.toUpperCase()} 인계지점 추천</h3>`;
-      groups[category].forEach(tp => {
-        const gain = tp.eta119 - tp.etaDoc;
-        container.innerHTML += `
-          <div class="hospital" style="padding:10px; border:1px solid #ccc; margin-bottom:10px;">
-            <h4>🏥 ${tp.name}</h4>
-            <ul>
-              <li><b>119 ETA(의사접촉시간): ${tp.eta119}분</b></li>
-              <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 빠름</li>
-              <li>➡️ 인계 후 길병원까지: ${tp.tptogilETA}분</li>
-              <li><b style="color:red;">총 이송 시간: ${tp.totalTransfer}분</b></li>
-              <li>🚨 길병원 직접 이송 시 ETA: ${tp.directToGilETA}분</li>
-            </ul>
-          </div>
-        `;
-      });
-    }
+function showResults(groups, origin, directToGilETA) {
+  ['col1', 'col2', 'col3'].forEach((colId, index) => {
+    const col = document.getElementById(colId);
+    if (col) col.innerHTML = '';
   });
 
-  const shareUrl = `${window.location.origin}?lat=${origin.lat}&lon=${origin.lon}`;
-  container.innerHTML += `
-    <p>
-      <a href="#" onclick="navigator.clipboard.writeText('${shareUrl}'); alert('📎 링크 복사됨: ${shareUrl}'); return false;">
-        🔗 결과 공유하기
-      </a>
-    </p>
-  `;
+  let totalShown = false;
+
+  ["column1", "column2", "column3"].forEach((colName, idx) => {
+    const group = groups[colName];
+    const colId = `col${idx + 1}`;
+    const colContainer = document.getElementById(colId);
+    if (!group || !colContainer) return;
+
+    const label =
+      idx === 0
+        ? "✅ 총 이송 시간 짧은 순"
+        : idx === 1
+        ? "⏱️ 빠른 닥터카 접촉 순 (직행 대비 ≤ 5분 지연)"
+        : "⏱️ 빠른 닥터카 접촉 순 (직행 대비 ≤ 10분 지연)";
+
+    ["safe", "accurate"].forEach(subgroup => {
+      const list = group[subgroup];
+      if (!list || list.length === 0) return;
+
+      totalShown = true;
+      const section = document.createElement('div');
+      section.innerHTML = `<h3>${label} - ${subgroup.toUpperCase()} 인계지점</h3>`;
+
+      list.forEach(tp => {
+        const gain = tp.eta119 - tp.etaDoc;
+        const fallbackText = (tp.fallback119 || tp.fallbackDoc || tp.fallbackToGil)
+          ? `<li style="color: #d97706; font-weight: bold;">⚠️ 실시간 교통 미반영 (Fallback 발생)</li>`
+          : '';
+
+        const item = document.createElement('div');
+        item.className = 'hospital';
+        item.style = 'padding:10px; border:1px solid #ccc; margin-bottom:10px;';
+        item.innerHTML = `
+          <h4>🏥 ${tp.name}</h4>
+          <ul>
+            <li><b>📍 주소: ${tp.address ?? '주소 없음'}</b></li>
+	    <li>📞 전화번호: ${tp.tel ?? '정보 없음'}</li>  
+            <li><b>119 ETA(의사접촉시간): ${tp.eta119}분</b></li>
+            <li>🚑 닥터카 ETA: ${tp.etaDoc}분 → ${gain}분 빠름</li>
+            <li>➡️ 인계 후 길병원까지: ${tp.tptogilETA}분</li>
+            <li><b style="color:red;">총 이송 시간: ${tp.totalTransfer}분</b></li>
+            <li>🚨 길병원 직접 이송 시 ETA: ${directToGilETA ?? 'N/A'}분</li>
+            ${fallbackText}
+          </ul>
+        `;
+        section.appendChild(item);
+      });
+
+      colContainer.appendChild(section);
+    });
+  });
+
+  if (!totalShown) {
+    const result = document.getElementById('col1');
+    result.innerHTML = '<p>❌ 추천할만한 인계지점이 없습니다.</p>';
+  } else {
+    const shareUrl = `${window.location.origin}?lat=${origin.lat}&lon=${origin.lon}`;
+    const shareDiv = document.createElement('div');
+    shareDiv.innerHTML = `
+      <p>
+        <a href="#" onclick="navigator.clipboard.writeText('${shareUrl}'); alert('📎 링크 복사됨: ${shareUrl}'); return false;">
+          🔗 결과 공유하기
+        </a>
+      </p>
+    `;
+    document.getElementById('col1').appendChild(shareDiv);
+  }
 }

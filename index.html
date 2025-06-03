@@ -6,13 +6,64 @@
   <title>Traumapoint with Tmap</title>
   <link rel="stylesheet" href="/style.css" />
   <script src="https://apis.openapi.sk.com/tmap/jsv2?version=1&appKey=tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m"></script>
+  <style>
+    #carouselContainer {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .carouselSlide {
+      flex: 0 0 100%;
+      scroll-snap-align: start;
+      padding: 10px;
+    }
+
+    @media (min-width: 768px) {
+      #carouselContainer {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        overflow: unset;
+        scroll-snap-type: none;
+      }
+      .carouselSlide {
+        flex: unset;
+        scroll-snap-align: unset;
+      }
+    }
+
+    #slideIndicator {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      padding: 4px 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      font-weight: bold;
+      font-size: 0.9em;
+      z-index: 1000;
+    }
+
+    #dotIndicator {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.2em;
+      color: #888;
+      z-index: 1000;
+    }
+  </style>
 </head>
 <body>
   <header>
     <div style="display: flex; align-items: center; justify-content: space-between;">
       <div>
         <h1>🚑 Traumapoint</h1>
-        <p>Tmap, Kakao 기반 외상 이송 포인트 추천 시스템</p>
+        <p>Tmap 기반 외상 이송 포인트 추천 시스템</p>
       </div>
       <div style="text-align: center;">
         <img src="/images/qr-code.png" alt="Traumapoint QR" style="height: 100px; margin-left: 20px;" />
@@ -28,12 +79,20 @@
     <button id="currentLocationBtn">📍 현재 위치에서 추천받기</button>
     <button id="copyAppLink">Traumapoint 앱 공유하기</button>
 
-    <!-- ✅ 로딩 메시지 위치 -->
     <div id="loading" style="display:none; font-weight:bold; margin:10px; text-align:center;">
       ⏳ 경로 추천 계산 중입니다. 잠시만 기다려주세요...
     </div>
 
-    <div id="results"></div>
+    <div id="carouselContainer">
+      <div id="col1" class="carouselSlide"></div>
+      <div id="col2" class="carouselSlide"></div>
+      <div id="col3" class="carouselSlide"></div>
+    </div>
+
+    <!-- ✅ 고정 인디케이터 -->
+    <div id="slideIndicator">1 / 3</div>
+    <div id="dotIndicator">● ○ ○</div>
+
     <div id="map" style="width:100%; height:400px;"></div>
   </main>
 
@@ -43,7 +102,7 @@
     <span style="color: red; font-weight: bold;">본 앱은 정보 제공에 대한 법적 책임을 지지 않습니다.</span><br><br>
     Special thanks to my beloved wife for her unwavering support and love.<br>
     © 2025 Jaeik Jang, MD. All rights reserved. l Contact: <a href="mailto:blanc7654@gmail.com">blanc7654@gmail.com</a><br>
-    본 앱은 인천, 김포, 광명, 부천, 시흥 지역의 2025년 4월 시점에서의 모든 응급실, 소방서 정보를 포함합니다.
+    본 앱은 인천, 김포, 광명, 부천, 시흥 지역의 정보를 포함합니다.
   </footer>
 
   <script src="/app.js"></script>
@@ -61,6 +120,19 @@
         alert("❌ 복사 실패: " + err);
       });
     }
+
+    // ✅ 슬라이드 인디케이터 + 도트 인디케이터 동기화
+    const container = document.getElementById('carouselContainer');
+    const indicator = document.getElementById('slideIndicator');
+    const dot = document.getElementById('dotIndicator');
+
+    container.addEventListener('scroll', () => {
+      const width = container.offsetWidth;
+      const scrollLeft = container.scrollLeft;
+      const pageIndex = Math.round(scrollLeft / width) + 1;
+      indicator.textContent = `${pageIndex} / 3`;
+      dot.textContent = ['● ○ ○', '○ ● ○', '○ ○ ●'][pageIndex - 1] || '● ○ ○';
+    });
   </script>
 </body>
 </html>

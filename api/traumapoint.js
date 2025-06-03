@@ -1,13 +1,47 @@
 import { getTmapRoute } from "../lib/geo/tmapRoute.js";
-import fs from "fs";
 
-const traumaPoints = JSON.parse(fs.readFileSync("./data/traumaPoints_within_9km.json", "utf-8"));
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method Not Allowed" });
+  }
+
+  // ✅ JSON 파일 동적 import
+  const traumaPoints = await import("../../data/traumaPoints_within_9km.json", {
+    assert: { type: "json" }
+  }).then(module => module.default);
+
 
 const GIL = {
   name: "길병원",
-  lat: 37.4484902659502,
-  lon: 126.75475575788,
+  lat: 37.452699,
+  lon: 126.707105,
 };
+
+function groupAndSortByTotalTransfer(tpList) {
+  const grouped = { safe: [], accurate: [] };
+  tpList.forEach(tp => {
+    const gain = tp.eta119 - tp.etaDoc;
+    const entry = { ...tp };
+    if (gain >= 10) grouped.safe.push(entry);
+    else if (gain >= 5) grouped.accurate.push(entry);
+  });
+  grouped.safe = grouped.safe.sort((a, b) => a.totalTransfer - b.totalTransfer).slice(0, 10);
+  grouped.accurate = grouped.accurate.sort((a, b) => a.totalTransfer - b.totalTransfer).slice(0, 5);
+  return grouped;
+}
+
+function groupAndSortByEta119(tpList, directToGilETA, maxDelayMinutes) {
+  const grouped = { safe: [], accurate: [] };
+  tpList.filter(tp => tp.totalTransfer <= directToGilETA + maxDelayMinutes).forEach(tp => {
+    const gain = tp.eta119 - tp.etaDoc;
+    const entry = { ...tp };
+    if (gain >= 10) grouped.safe.push(entry);
+    else if (gain >= 5) grouped.accurate.push(entry);
+  });
+  grouped.safe = grouped.safe.sort((a, b) => a.eta119 - b.eta119).slice(0, 10);
+  grouped.accurate = grouped.accurate.sort((a, b) => a.eta119 - b.eta119).slice(0, 5);
+  return grouped;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -15,98 +49,141 @@ export default async function handler(req, res) {
   }
 
   const { origin } = req.body;
+  console.log("📍 요청 받은 origin =", origin);
   if (!origin || typeof origin.lat !== "number" || typeof origin.lon !== "number") {
     return res.status(400).json({ error: "Invalid origin (lat/lon required)" });
   }
 
   try {
-    const originPoint = { lat: origin.lat, lon: origin.lon };
+    const now = new Date();
+    const departurePlus1m = new Date(now.getTime() + 1 * 60 * 1000);
+    const departurePlus15m = new Date(now.getTime() + 15 * 60 * 1000);
 
-    // 길병원 직송 ETA
-    const directToGil = await getTmapRoute(originPoint, GIL);
-    const directToGilETA = Math.round(directToGil.duration / 60);
+    const originPoint = { lat: origin.lat, lon: origin.lon, name: origin.name || "출발지" };
 
-    // 1. origin → traumaPoints (119)
+    const directRoute = await getTmapRoute(originPoint, GIL, departurePlus1m);
+    if (!directRoute || typeof directRoute.duration !== "number") {
+      console.error("❌ 길병원 직행 ETA 계산 실패");
+      return res.status(500).json({ error: "길병원 직행 ETA 계산 실패" });
+    }
+    const directToGilETA = Math.round(directRoute.duration / 60);
+    const directFallback = !!directRoute.fallback;
+    if (directFallback) {
+      console.warn(`⚠️ 길병원 직행 경로 fallback 감지됨`);
+    }
+
     const eta119List = await Promise.all(
       traumaPoints.map(async (tp) => {
-        const route = await getTmapRoute(originPoint, tp);
+        const route = await getTmapRoute(originPoint, tp, departurePlus1m);
         const eta119 = Math.round(route.duration / 60);
-        if (eta119 <= directToGilETA + 20) return null;
-        return { ...tp, eta119 };
+        const fallback = !!route.fallback;
+
+        if (eta119 >= directToGilETA) {
+          console.log(`❌ [119필터] ${tp.name}: eta119(${eta119}) ≥ directToGilETA(${directToGilETA})`);
+          return null;
+        }
+
+        if (fallback) {
+          console.warn(`⚠️ [Fallback 감지] ${tp.name}: 실시간 교통 미반영`);
+        }
+
+        return { ...tp, eta119, fallback119: fallback };
       })
     );
 
-    // 2. 길병원 → traumaPoints (닥터카)
     const withDocETA = await Promise.all(
       eta119List.filter(Boolean).map(async (tp) => {
-        const route = await getTmapRoute(GIL, tp, { departureOffsetMin: 15 });
-        const etaDocRaw = Math.round(route.duration / 60); // 15분 지연 시점의 교통 기준
-        const etaDoc = etaDocRaw + 15; // 출발 지연 시간 더함
+        const route = await getTmapRoute(GIL, tp, departurePlus15m);
+        const etaDocRaw = Math.round(route.duration / 60);
+        const etaDoc = etaDocRaw + 15;
 
-        if (tp.eta119 <= etaDoc) return null;
-        if (etaDocRaw > directToGilETA + 20) return null;
+        if (tp.eta119 <= etaDoc) {
+          console.log(`❌ [닥터카 ETA 필터] ${tp.name}: eta119(${tp.eta119}) ≤ etaDoc(${etaDoc})`);
+          return null;
+        }
 
-        return { ...tp, eta119: tp.eta119, etaDoc, etaDocRaw };
+        if (etaDocRaw > directToGilETA + 20) {
+          console.log(`❌ [닥터카 Raw ETA 필터] ${tp.name}: etaDocRaw(${etaDocRaw}) > directToGilETA(${directToGilETA}) + 20`);
+          return null;
+        }
+
+        if (route.fallback) {
+          console.warn(`⚠️ [Fallback 감지] ${tp.name} (닥터카): 실시간 교통 미반영`);
+        }
+
+        return {
+          ...tp,
+          etaDoc,
+          etaDocRaw,
+          fallbackDoc: !!route.fallback
+        };
       })
     );
 
-    // 3. traumaPoint → 길병원 (인계 시점부터)
     const withTpToGil = await Promise.all(
       withDocETA.filter(Boolean).map(async (tp) => {
-        const departure = new Date();
-        departure.setMinutes(departure.getMinutes() + tp.eta119); // 119 도착 시점 기준
-        const route = await getTmapRoute(tp, GIL, { departureTime: departure });
+        const tpToGilDeparture = new Date(now.getTime() + tp.eta119 * 60 * 1000);
+        const route = await getTmapRoute(tp, GIL, tpToGilDeparture);
         const tptogilETA = Math.round(route.duration / 60);
         const totalTransfer = tp.eta119 + tptogilETA;
 
-        if (totalTransfer > directToGilETA + 20) return null;
+        if (totalTransfer > directToGilETA + 20) {
+          console.log(`❌ [총 이송시간 필터] ${tp.name}: totalTransfer(${totalTransfer}) > directToGilETA(${directToGilETA}) + 20`);
+          return null;
+        }
+
+        if (route.fallback) {
+          console.warn(`⚠️ [Fallback 감지] ${tp.name} → 길병원: 실시간 교통 미반영`);
+        }
 
         return {
           name: tp.name,
           lat: tp.lat,
           lon: tp.lon,
+          address: tp.address,
+          tel: tp.tel,
           eta119: tp.eta119,
           etaDoc: tp.etaDoc,
           etaDocRaw: tp.etaDocRaw,
           tptogilETA,
-          totalTransfer
+          totalTransfer,
+          fallback119: tp.fallback119,
+          fallbackDoc: tp.fallbackDoc,
+          fallbackToGil: !!route.fallback
         };
       })
     );
 
-    // 그룹 분류
-    const grouped = { safe: [], accurate: [], fast: [] };
-
-    withTpToGil.filter(Boolean).forEach(tp => {
-      const gain = tp.eta119 - tp.etaDoc;
-      const entry = {
-        name: tp.name,
-        lat: tp.lat,
-        lon: tp.lon,
-        eta119: tp.eta119,
-        etaDoc: tp.etaDoc,
-        etaDocRaw: tp.etaDocRaw,
-        tptogilETA: tp.tptogilETA,
-        totalTransfer: tp.totalTransfer,
-      };
-
-      if (gain >= 10) grouped.safe.push(entry);
-      else if (gain >= 5) grouped.accurate.push(entry);
-      else if (gain >= 3) grouped.fast.push(entry);
-    });
-
-    // 그룹 정렬: 총 이송시간 기준 오름차순
-    Object.keys(grouped).forEach(key => {
-      grouped[key] = grouped[key]
-        .sort((a, b) => a.totalTransfer - b.totalTransfer)
-        .slice(0, 4);
-    });
+    const finalList = withTpToGil.filter(Boolean);
+    const column1 = groupAndSortByTotalTransfer(finalList);
+    const column2 = groupAndSortByEta119(finalList, directToGilETA, 5);
+    const column3 = groupAndSortByEta119(finalList, directToGilETA, 10);
 
     res.status(200).json({
       origin,
       directToGilETA,
-      recommendations: grouped,
+      fallbackDirect: directFallback,
+      recommendations: { column1, column2, column3 },
     });
+
+    console.log("\n🧾 === 요약 콘솔 출력 ===");
+    console.log(`📍 요청 origin = (${origin.lat}, ${origin.lon})`);
+    console.log(`🚑 길병원 직행 ETA: ${directToGilETA}분 ${directFallback ? "(⚠️ fallback)" : ""}`);
+    console.log(`\n[1단계] 119 ETA 필터`);
+    console.log(`  ▸ 원본 TP 수: ${traumaPoints.length}`);
+    console.log(`  ▸ 통과: ${eta119List.filter(Boolean).length}개`);
+    console.log(`  ▸ 제외: ${traumaPoints.length - eta119List.filter(Boolean).length}개`);
+    console.log(`\n[2단계] 닥터카 ETA 필터`);
+    console.log(`  ▸ 통과: ${withDocETA.filter(Boolean).length}개`);
+    console.log(`  ▸ 제외: ${eta119List.filter(Boolean).length - withDocETA.filter(Boolean).length}개`);
+    console.log(`\n[3단계] 총 이송시간 필터`);
+    console.log(`  ▸ 최종 통과: ${withTpToGil.filter(Boolean).length}개`);
+    console.log(`  ▸ 제외: ${withDocETA.filter(Boolean).length - withTpToGil.filter(Boolean).length}개`);
+    console.log(`\n🎯 최종 추천`);
+    console.log(`  ▸ column1 safe: ${column1.safe.length}개, accurate: ${column1.accurate.length}개`);
+    console.log(`  ▸ column2 safe: ${column2.safe.length}개, accurate: ${column2.accurate.length}개`);
+    console.log(`  ▸ column3 safe: ${column3.safe.length}개, accurate: ${column3.accurate.length}개`);
+    console.log("🧾 =====================\n");
 
   } catch (e) {
     console.error("🚨 Tmap 계산 실패:", e);
