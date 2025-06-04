@@ -50,11 +50,6 @@ function groupAndSortByEta119(tpList, directToGilETA, maxDelayMinutes) {
   return grouped;
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method Not Allowed" });
-  }
-
   const { origin } = req.body;
   console.log("📍 요청 받은 origin =", origin);
   if (!origin || typeof origin.lat !== "number" || typeof origin.lon !== "number") {
