@@ -4,9 +4,23 @@
     { "source": "/", "destination": "/index.html" },
     { "source": "/api/(.*)", "destination": "/api/$1.js" }
   ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ],
   "functions": {
     "api/traumapoint.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "env": {
+        "TMAP_APP_KEY": "tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m"
+      }
     }
   },
   "build": {

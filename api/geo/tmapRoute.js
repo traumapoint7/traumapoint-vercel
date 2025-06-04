@@ -1,6 +1,6 @@
-export async function getTmapRoute(origin, destination, departureTime) {
-  const TMAP_API_KEY = process.env.TMAP_APP_KEY;
-  const url = `https://apis.openapi.sk.com/tmap/routes/prediction?version=1`;
+export async function getTmapRoute(origin, destination, departureTime = new Date()) {
+  const apiKey = process.env.TMAP_APP_KEY;
+  const url = "https://apis.openapi.sk.com/tmap/routes";
 
   // 🛑 좌표 유효성 검사
   if (
@@ -56,7 +56,7 @@ export async function getTmapRoute(origin, destination, departureTime) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "appKey": TMAP_API_KEY
+        "appKey": apiKey
       },
       body: JSON.stringify(body)
     });

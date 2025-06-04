@@ -140,7 +140,7 @@ function hideLoading() {
 function requestRecommendation(origin) {
   showLoading();
 
-  fetch(`${window.location.origin}/api/traumapoint`, {
+  fetch(`/api/traumapoint`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ origin })
@@ -225,7 +225,7 @@ function showResults(groups, origin, directToGilETA) {
     const result = document.getElementById('col1');
     result.innerHTML = '<p>❌ 추천할만한 인계지점이 없습니다.</p>';
   } else {
-    const shareUrl = `${window.location.origin}?lat=${origin.lat}&lon=${origin.lon}`;
+    const shareUrl = `?lat=${origin.lat}&lon=${origin.lon}`;
     const shareDiv = document.createElement('div');
     shareDiv.innerHTML = `
       <p>
