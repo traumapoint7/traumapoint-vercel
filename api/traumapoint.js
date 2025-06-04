@@ -1,7 +1,7 @@
 import { fileURLToPath } from "url";
 import path from "path";
 import { promises as fs } from "fs";
-import { getTmapRoute } from "../../lib/geo/tmapRoute.js";
+import { getTmapRoute } from "../lib/geo/tmapRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const filePath = path.join(__dirname, "../../data/traumaPoints_within_9km.json");
+    const filePath = path.join(__dirname, "../data/traumaPoints_within_9km.json");
     console.log("📁 JSON 경로:", filePath);
     const traumaPointsRaw = await fs.readFile(filePath, "utf-8");
     const traumaPoints = JSON.parse(traumaPointsRaw);
