@@ -1,3 +1,5 @@
+
+
 import { fileURLToPath } from "url";
 import path from "path";
 import { getTmapRoute } from "./geo/tmapRoute.js";
@@ -6,7 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default async function handler(req, res) {
+ console.log("📦 [traumapoint API] 함수 시작"); // ✅ 함수 진입 로그
   if (req.method !== "POST") {
+    console.warn("⚠️ [traumapoint API] POST 외 메서드 호출");
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
@@ -74,6 +78,7 @@ function groupAndSortByEta119(tpList, directToGilETA, maxDelayMinutes) {
   const { origin } = req.body;
   console.log("📍 요청 받은 origin =", origin);
   if (!origin || typeof origin.lat !== "number" || typeof origin.lon !== "number") {
+    console.error("❌ 잘못된 origin 좌표:", origin);
     return res.status(400).json({ error: "Invalid origin (lat/lon required)" });
   }
 
@@ -208,8 +213,7 @@ function groupAndSortByEta119(tpList, directToGilETA, maxDelayMinutes) {
     console.log(`  ▸ column3 safe: ${column3.safe.length}개, accurate: ${column3.accurate.length}개`);
     console.log("🧾 =====================\n");
 
-   } catch (e) {
-    console.error("🚨 Tmap 계산 실패:", e);
+  } catch (e) {
+    console.error("🚨 Tmap 계산 실패:", e.stack || e.message); // ✅ stack 포함
     res.status(500).json({ error: e.message, stack: e.stack });
   }
-}

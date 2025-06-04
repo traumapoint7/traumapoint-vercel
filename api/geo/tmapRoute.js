@@ -85,8 +85,8 @@ console.log("📤 요청 바디:", JSON.stringify(body, null, 2));
     });
 
     return { duration, distance };
-  } catch (err) {
-    console.error(`[${origin.name || "출발지"} → ${destination.name || "도착지"}] API 호출 실패: ${err.message}`);
-    throw err;
-  }
+catch (err) {
+  console.error(`[${origin.name || "출발지"} → ${destination.name || "도착지"}] API 호출 실패: ${err.message}`);
+  console.error("📛 STACK TRACE:", err.stack);
+  throw err;
 }
