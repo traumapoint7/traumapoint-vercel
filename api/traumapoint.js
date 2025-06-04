@@ -10,24 +10,32 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: "Method Not Allowed" });
   }
 
-  try {
-    // ✅ 수정: fs.readFile 대신 fetch 사용
-    const baseUrl =
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+let traumaPoints;
+
+try {
+  const baseUrl = `https://${process.env.VERCEL_URL}`;
 
 if (!process.env.VERCEL_URL) {
-  console.warn("⚠️ VERCEL_URL 환경변수가 설정되지 않았습니다. 로컬 테스트 모드로 작동합니다.");
+  console.warn("⚠️ VERCEL_URL 환경변수가 설정되지 않았습니다. Vercel 배포환경이 아닐 수 있습니다.");
+  return res.status(500).json({ error: "VERCEL_URL 환경변수가 필요합니다" });
 }
 
-    const traumaPoints = await fetch(`${baseUrl}/data/traumaPoints_within_9km.json`, {
-  cache: "no-store" // ✅ 캐시 비활성화
-})
-      .then(res => res.json())
-      .catch(err => {
-        throw new Error("traumaPoints JSON fetch 실패: " + err.message);
-      });
+  // ✅ fetch에 no-store 옵션 추가
+  const response = await fetch(`${baseUrl}/data/traumaPoints_within_9km.json`, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+  }
+
+  traumaPoints = await response.json();
+  console.log("✅ traumaPoints JSON fetch 성공");
+
+} catch (err) {
+  console.error("❌ traumaPoints JSON fetch 실패:", err);
+  return res.status(500).json({ error: "traumaPoints 불러오기 실패", stack: err.stack });
+}
 
     console.log("✅ traumaPoints JSON fetch 성공");
 

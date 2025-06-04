@@ -140,7 +140,7 @@ function hideLoading() {
 function requestRecommendation(origin) {
   showLoading();
 
-  fetch('/api/traumapoint', {
+  fetch(`${window.location.origin}/api/traumapoint`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ origin })
