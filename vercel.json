@@ -17,15 +17,7 @@
   ],
   "functions": {
     "api/traumapoint.js": {
-      "maxDuration": 60,
-      "env": {
-        "TMAP_APP_KEY": "tEiRteq9K69x8eOSBcOJb3FWVFkzNRiJ3OxUBB1m"
+      "maxDuration": 60
       }
-    }
-  },
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
   }
-}
+ }
