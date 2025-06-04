@@ -1,7 +1,6 @@
 import { fileURLToPath } from "url";
 import path from "path";
-import { promises as fs } from "fs";
-import { getTmapRoute } from "../lib/geo/tmapRoute.js";
+import { getTmapRoute } from "../../lib/geo/tmapRoute.js"; // ✅ 상대경로 수정
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,11 +11,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const filePath = path.join(__dirname, "../data/traumaPoints_within_9km.json");
-    console.log("📁 JSON 경로:", filePath);
-    const traumaPointsRaw = await fs.readFile(filePath, "utf-8");
-    const traumaPoints = JSON.parse(traumaPointsRaw);
-    console.log("✅ traumaPoints 파일 읽기 성공");
+    // ✅ 수정: fs.readFile 대신 fetch 사용
+    const baseUrl =
+      process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+
+if (!process.env.VERCEL_URL) {
+  console.warn("⚠️ VERCEL_URL 환경변수가 설정되지 않았습니다. 로컬 테스트 모드로 작동합니다.");
+}
+
+    const traumaPoints = await fetch(`${baseUrl}/data/traumaPoints_within_9km.json`, {
+  cache: "no-store" // ✅ 캐시 비활성화
+})
+      .then(res => res.json())
+      .catch(err => {
+        throw new Error("traumaPoints JSON fetch 실패: " + err.message);
+      });
+
+    console.log("✅ traumaPoints JSON fetch 성공");
 
 const GIL = {
   name: "길병원",
