@@ -14,10 +14,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "api/traumapoint.js": {
-      "maxDuration": 60
-      }
-  }
+  ]
  }
