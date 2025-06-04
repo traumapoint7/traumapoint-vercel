@@ -62,12 +62,16 @@ export async function getTmapRoute(origin, destination, departureTime = new Date
     });
 
     const data = await response.json();
+// ✅ 추가 로그
+console.log("📦 Tmap API 응답 원본:", JSON.stringify(data, null, 2));
+console.log("📤 요청 바디:", JSON.stringify(body, null, 2));
 
     const summary = data.features?.find(f => f.properties?.totalTime);
 
-    if (!summary) {
-      throw new Error(`[${origin.name} → ${destination.name}] 경로 요약 정보 없음`);
-    }
+  if (!summary) {
+  console.error("📭 전체 응답 데이터:", JSON.stringify(data, null, 2));
+  throw new Error(`[${origin.name} → ${destination.name}] 경로 요약 정보 없음`);
+}
 
     const duration = summary.properties.totalTime;
     const distance = summary.properties.totalDistance;
