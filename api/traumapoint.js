@@ -1,6 +1,10 @@
+import { fileURLToPath } from "url";
 import path from "path";
 import { promises as fs } from "fs";
-import { getTmapRoute } from "../../lib/geo/tmapRoute.js"; // 그대로 유지
+import { getTmapRoute } from "../../lib/geo/tmapRoute.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,9 +12,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ✅ traumaPoints 로딩
-    const filePath = path.join(process.cwd(), "data", "traumaPoints_within_9km.json");
-    console.log("📁 JSON 경로:", filePath);  // 🔍 절대 경로 확인
+    const filePath = path.join(__dirname, "../../data/traumaPoints_within_9km.json");
+    console.log("📁 JSON 경로:", filePath);
     const traumaPointsRaw = await fs.readFile(filePath, "utf-8");
     const traumaPoints = JSON.parse(traumaPointsRaw);
     console.log("✅ traumaPoints 파일 읽기 성공");
@@ -189,7 +192,7 @@ export default async function handler(req, res) {
     console.log(`  ▸ column3 safe: ${column3.safe.length}개, accurate: ${column3.accurate.length}개`);
     console.log("🧾 =====================\n");
 
-  } catch (e) {
+   } catch (e) {
     console.error("🚨 Tmap 계산 실패:", e);
     res.status(500).json({ error: e.message, stack: e.stack });
   }
