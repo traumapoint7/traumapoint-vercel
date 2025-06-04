@@ -1,6 +1,6 @@
 import { fileURLToPath } from "url";
 import path from "path";
-import { getTmapRoute } from "../../lib/geo/tmapRoute.js"; // ✅ 상대경로 수정
+import { getTmapRoute } from "./geo/tmapRoute.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
